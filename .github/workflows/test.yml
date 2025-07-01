@@ -42,8 +42,18 @@ jobs:
         cp .env.test .env
         echo "DATABASE_URL=mysql://root:test@localhost:3306/numbr_billing_test" >> .env
 
+    - name: Debug MySQL connection
+      run: |
+        echo "Testing MySQL connection..."
+        mysql -h localhost -P 3306 -u root -ptest -e "SELECT 1"
+        mysql -h localhost -P 3306 -u root -ptest -e "SHOW DATABASES"
+        
     - name: Run Prisma migrations
-      run: npm run prisma:migrate:test
+      run: |
+        echo "DATABASE_URL from .env file:"
+        cat .env | grep DATABASE_URL
+        echo "Running Prisma migration..."
+        npm run prisma:migrate:test
 
     - name: Run linter
       run: npm run lint
