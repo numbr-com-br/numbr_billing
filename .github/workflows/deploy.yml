@@ -1,0 +1,122 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - develop
+      - staging
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set environment name
+      id: set-env
+      run: |
+        if [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+          echo "env_name=dev" >> $GITHUB_OUTPUT
+          echo "stack_name=numbr-billing-dev" >> $GITHUB_OUTPUT
+        elif [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
+          echo "env_name=stg" >> $GITHUB_OUTPUT
+          echo "stack_name=numbr-billing-stg" >> $GITHUB_OUTPUT
+        elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          echo "env_name=prod" >> $GITHUB_OUTPUT
+          echo "stack_name=numbr-billing-prod" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci --omit=dev
+
+    - name: Build application
+      run: |
+        npm run build
+        npm run prisma:generate
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets[format('AWS_ROLE_ARN_{0}', steps.set-env.outputs.env_name == 'dev' && 'DEV' || steps.set-env.outputs.env_name == 'stg' && 'STG' || 'PROD')] }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Build Lambda package
+      run: |
+        chmod +x scripts/build-lambda.sh
+        ./scripts/build-lambda.sh ${{ steps.set-env.outputs.env_name }}
+
+    - name: Deploy CloudFormation stack
+      run: |
+        aws cloudformation deploy \
+          --template-file cloudformation/template.yaml \
+          --stack-name ${{ steps.set-env.outputs.stack_name }} \
+          --parameter-overrides \
+            Environment=${{ steps.set-env.outputs.env_name }} \
+            DatabaseUrl=${{ secrets[format('DATABASE_URL_{0}', steps.set-env.outputs.env_name == 'dev' && 'DEV' || steps.set-env.outputs.env_name == 'stg' && 'STG' || 'PROD')] }} \
+            AsaasApiKey=${{ secrets[format('ASAAS_API_KEY_{0}', steps.set-env.outputs.env_name == 'dev' && 'DEV' || steps.set-env.outputs.env_name == 'stg' && 'STG' || 'PROD')] }} \
+            AsaasWebhookToken=${{ secrets[format('ASAAS_WEBHOOK_TOKEN_{0}', steps.set-env.outputs.env_name == 'dev' && 'DEV' || steps.set-env.outputs.env_name == 'stg' && 'STG' || 'PROD')] }} \
+            AdminEmail=${{ secrets[format('ADMIN_EMAIL_{0}', steps.set-env.outputs.env_name == 'dev' && 'DEV' || steps.set-env.outputs.env_name == 'stg' && 'STG' || 'PROD')] }} \
+            AdminPassword=${{ secrets[format('ADMIN_PASSWORD_{0}', steps.set-env.outputs.env_name == 'dev' && 'DEV' || steps.set-env.outputs.env_name == 'stg' && 'STG' || 'PROD')] }} \
+          --capabilities CAPABILITY_IAM \
+          --no-fail-on-empty-changeset
+
+    - name: Update Lambda function code
+      run: |
+        aws lambda update-function-code \
+          --function-name numbr-billing-${{ steps.set-env.outputs.env_name }}-function \
+          --zip-file fileb://lambda-package.zip
+
+    - name: Wait for Lambda update
+      run: |
+        aws lambda wait function-updated \
+          --function-name numbr-billing-${{ steps.set-env.outputs.env_name }}-function
+
+    - name: Update Lambda Layer
+      if: hashFiles('layer-package.zip') != ''
+      run: |
+        LAYER_VERSION=$(aws lambda publish-layer-version \
+          --layer-name numbr-billing-${{ steps.set-env.outputs.env_name }}-deps \
+          --zip-file fileb://layer-package.zip \
+          --compatible-runtimes nodejs20.x \
+          --query 'Version' \
+          --output text)
+        
+        aws lambda update-function-configuration \
+          --function-name numbr-billing-${{ steps.set-env.outputs.env_name }}-function \
+          --layers arn:aws:lambda:${{ secrets.AWS_REGION }}:${{ secrets.AWS_ACCOUNT_ID }}:layer:numbr-billing-${{ steps.set-env.outputs.env_name }}-deps:$LAYER_VERSION
+
+    - name: Get API Gateway URL
+      id: get-api-url
+      run: |
+        API_URL=$(aws cloudformation describe-stacks \
+          --stack-name ${{ steps.set-env.outputs.stack_name }} \
+          --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' \
+          --output text)
+        echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+
+    - name: Smoke test
+      run: |
+        echo "Testing API at: ${{ steps.get-api-url.outputs.api_url }}"
+        curl -f ${{ steps.get-api-url.outputs.api_url }}/health || exit 1
+
+    - name: Notify deployment
+      if: always()
+      run: |
+        echo "Deployment completed for ${{ steps.set-env.outputs.env_name }} environment"
+        echo "API URL: ${{ steps.get-api-url.outputs.api_url }}"
