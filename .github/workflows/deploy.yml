@@ -18,6 +18,7 @@ jobs:
   deploy:
     needs: test
     runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'develop' && 'development' || github.ref_name == 'staging' && 'staging' || 'production' }}
     
     steps:
     - uses: actions/checkout@v4
@@ -28,12 +29,15 @@ jobs:
         if [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
           echo "env_name=dev" >> $GITHUB_OUTPUT
           echo "stack_name=numbr-billing-dev" >> $GITHUB_OUTPUT
+          echo "domain_name=billing-dev.numbr.com.br" >> $GITHUB_OUTPUT
         elif [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
           echo "env_name=stg" >> $GITHUB_OUTPUT
           echo "stack_name=numbr-billing-stg" >> $GITHUB_OUTPUT
+          echo "domain_name=billing-staging.numbr.com.br" >> $GITHUB_OUTPUT
         elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
           echo "env_name=prod" >> $GITHUB_OUTPUT
           echo "stack_name=numbr-billing-prod" >> $GITHUB_OUTPUT
+          echo "domain_name=billing.numbr.com.br" >> $GITHUB_OUTPUT
         fi
 
     - name: Setup Node.js
@@ -68,11 +72,12 @@ jobs:
           --stack-name ${{ steps.set-env.outputs.stack_name }} \
           --parameter-overrides \
             Environment=${{ steps.set-env.outputs.env_name }} \
-            DatabaseUrl=${{ secrets[format('DATABASE_URL_{0}', steps.set-env.outputs.env_name == 'dev' && 'DEV' || steps.set-env.outputs.env_name == 'stg' && 'STG' || 'PROD')] }} \
-            AsaasApiKey=${{ secrets[format('ASAAS_API_KEY_{0}', steps.set-env.outputs.env_name == 'dev' && 'DEV' || steps.set-env.outputs.env_name == 'stg' && 'STG' || 'PROD')] }} \
-            AsaasWebhookToken=${{ secrets[format('ASAAS_WEBHOOK_TOKEN_{0}', steps.set-env.outputs.env_name == 'dev' && 'DEV' || steps.set-env.outputs.env_name == 'stg' && 'STG' || 'PROD')] }} \
-            AdminEmail=${{ secrets[format('ADMIN_EMAIL_{0}', steps.set-env.outputs.env_name == 'dev' && 'DEV' || steps.set-env.outputs.env_name == 'stg' && 'STG' || 'PROD')] }} \
-            AdminPassword=${{ secrets[format('ADMIN_PASSWORD_{0}', steps.set-env.outputs.env_name == 'dev' && 'DEV' || steps.set-env.outputs.env_name == 'stg' && 'STG' || 'PROD')] }} \
+            DatabaseUrl="${{ vars.DATABASE_URL }}" \
+            AsaasApiKey="${{ vars.ASAAS_API_KEY }}" \
+            AsaasWebhookToken="${{ vars.ASAAS_WEBHOOK_TOKEN }}" \
+            AdminEmail="${{ vars.ADMIN_EMAIL }}" \
+            AdminPassword="${{ vars.ADMIN_PASSWORD }}" \
+            DomainName="${{ steps.set-env.outputs.domain_name }}" \
           --capabilities CAPABILITY_IAM \
           --no-fail-on-empty-changeset
 
