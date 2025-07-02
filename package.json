@@ -10,7 +10,7 @@
     "start": "node dist/app.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:migrate:test": "dotenv -e .env.test -- prisma migrate deploy",
+    "prisma:migrate:test": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "lint": "eslint src/**/*.ts",
     "format": "prettier --write \"src/**/*.ts\"",
@@ -19,7 +19,7 @@
     "test:coverage": "jest --coverage",
     "test:unit": "jest --testPathPattern=tests/unit",
     "test:integration": "jest --testPathPattern=tests/integration",
-    "pretest": "dotenv -e .env.test -- prisma migrate deploy"
+    "pretest": "prisma migrate deploy"
   },
   "keywords": [],
   "author": "",
