@@ -67,13 +67,29 @@ jobs:
         aws s3api head-bucket --bucket $BUCKET_NAME 2>/dev/null || \
         aws s3api create-bucket --bucket $BUCKET_NAME --region ${{ secrets.AWS_REGION }} || true
 
+    - name: Upload Lambda package to S3
+      run: |
+        BUCKET_NAME="numbr-billing-deployment-${{ secrets.AWS_ACCOUNT_ID }}-${{ secrets.AWS_REGION }}"
+        TIMESTAMP=$(date +%Y%m%d%H%M%S)
+        
+        aws s3 cp lambda-package.zip s3://$BUCKET_NAME/lambda-${{ steps.set-env.outputs.env_name }}-$TIMESTAMP.zip
+        echo "LAMBDA_S3_KEY=lambda-${{ steps.set-env.outputs.env_name }}-$TIMESTAMP.zip" >> $GITHUB_ENV
+        
+        if [ -f layer-package.zip ]; then
+          aws s3 cp layer-package.zip s3://$BUCKET_NAME/layer-${{ steps.set-env.outputs.env_name }}-$TIMESTAMP.zip
+          echo "LAYER_S3_KEY=layer-${{ steps.set-env.outputs.env_name }}-$TIMESTAMP.zip" >> $GITHUB_ENV
+        fi
+
     - name: Deploy CloudFormation stack
       run: |
         echo "Deploying stack: ${{ steps.set-env.outputs.stack_name }}"
         echo "Environment: ${{ steps.set-env.outputs.env_name }}"
-        echo "Domain: ${{ steps.set-env.outputs.domain_name }}"
         
         BUCKET_NAME="numbr-billing-deployment-${{ secrets.AWS_ACCOUNT_ID }}-${{ secrets.AWS_REGION }}"
+        
+        # Update template with S3 locations
+        sed -i "s|CodeUri: ../|CodeUri: s3://$BUCKET_NAME/$LAMBDA_S3_KEY|g" cloudformation/template.yaml
+        sed -i "s|ContentUri: ../layer/|ContentUri: s3://$BUCKET_NAME/$LAYER_S3_KEY|g" cloudformation/template.yaml
         
         aws cloudformation deploy \
           --template-file cloudformation/template.yaml \
