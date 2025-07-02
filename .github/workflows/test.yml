@@ -40,20 +40,10 @@ jobs:
     - name: Setup test environment
       run: |
         cp .env.test .env
-        echo "DATABASE_URL=mysql://root:test@localhost:3306/numbr_billing_test" >> .env
-
-    - name: Debug MySQL connection
-      run: |
-        echo "Testing MySQL connection..."
-        mysql -h localhost -P 3306 -u root -ptest -e "SELECT 1"
-        mysql -h localhost -P 3306 -u root -ptest -e "SHOW DATABASES"
+        echo "DATABASE_URL=mysql://root:test@127.0.0.1:3306/numbr_billing_test" >> .env
         
     - name: Run Prisma migrations
-      run: |
-        echo "DATABASE_URL from .env file:"
-        cat .env | grep DATABASE_URL
-        echo "Running Prisma migration..."
-        npm run prisma:migrate:test
+      run: npm run prisma:migrate:test
 
     - name: Run linter
       run: npm run lint
@@ -61,7 +51,7 @@ jobs:
     - name: Run tests with coverage
       run: npm run test:coverage
       env:
-        DATABASE_URL: mysql://root:test@localhost:3306/numbr_billing_test
+        DATABASE_URL: mysql://root:test@127.0.0.1:3306/numbr_billing_test
         ASAAS_API_KEY: test_api_key
         ASAAS_API_URL: https://sandbox.asaas.com/api/v3
         ASAAS_WEBHOOK_TOKEN: test_webhook_token
