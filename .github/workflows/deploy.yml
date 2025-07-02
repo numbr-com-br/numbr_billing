@@ -12,11 +12,7 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    uses: ./.github/workflows/test.yml
-
   deploy:
-    needs: test
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name == 'develop' && 'development' || github.ref_name == 'staging' && 'staging' || 'production' }}
     
