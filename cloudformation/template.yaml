@@ -33,10 +33,10 @@ Parameters:
     NoEcho: true
     Description: Admin panel password
   
-  DomainName:
-    Type: String
-    Description: Custom domain name
-    Default: ''
+  # DomainName:
+  #   Type: String
+  #   Description: Custom domain name
+  #   Default: ''
 
 Globals:
   Function:
@@ -150,38 +150,38 @@ Resources:
       Action: lambda:InvokeFunctionUrl
       FunctionUrlAuthType: NONE
 
-  # Custom Domain (only if domain name is provided)
-  DomainCertificate:
-    Type: AWS::CertificateManager::Certificate
-    Condition: HasDomainName
-    Properties:
-      DomainName: !Ref DomainName
-      ValidationMethod: DNS
-      DomainValidationOptions:
-        - DomainName: !Ref DomainName
-          HostedZoneId: Z08904861PTUJ33P2141S
+  # Custom Domain - commented out for now
+  # DomainCertificate:
+  #   Type: AWS::CertificateManager::Certificate
+  #   Condition: HasDomainName
+  #   Properties:
+  #     DomainName: !Ref DomainName
+  #     ValidationMethod: DNS
+  #     DomainValidationOptions:
+  #       - DomainName: !Ref DomainName
+  #         HostedZoneId: Z08904861PTUJ33P2141S
 
-  CustomDomain:
-    Type: AWS::ApiGateway::DomainName
-    Condition: HasDomainName
-    Properties:
-      DomainName: !Ref DomainName
-      RegionalCertificateArn: !Ref DomainCertificate
-      EndpointConfiguration:
-        Types:
-          - REGIONAL
+  # CustomDomain:
+  #   Type: AWS::ApiGateway::DomainName
+  #   Condition: HasDomainName
+  #   Properties:
+  #     DomainName: !Ref DomainName
+  #     RegionalCertificateArn: !Ref DomainCertificate
+  #     EndpointConfiguration:
+  #       Types:
+  #         - REGIONAL
 
-  BasePathMapping:
-    Type: AWS::ApiGateway::BasePathMapping
-    Condition: HasDomainName
-    Properties:
-      DomainName: !Ref CustomDomain
-      RestApiId: !Ref Api
-      Stage: !Ref Environment
+  # BasePathMapping:
+  #   Type: AWS::ApiGateway::BasePathMapping
+  #   Condition: HasDomainName
+  #   Properties:
+  #     DomainName: !Ref CustomDomain
+  #     RestApiId: !Ref Api
+  #     Stage: !Ref Environment
 
 Conditions:
   IsProd: !Equals [!Ref Environment, prod]
-  HasDomainName: !Not [!Equals [!Ref DomainName, '']]
+  # HasDomainName: !Not [!Equals [!Ref DomainName, '']]
 
 Outputs:
   ApiUrl:
@@ -196,12 +196,12 @@ Outputs:
     Description: Lambda Function ARN
     Value: !GetAtt BillingFunction.Arn
   
-  CustomDomainName:
-    Condition: HasDomainName
-    Description: Custom domain regional domain name
-    Value: !GetAtt CustomDomain.RegionalDomainName
-  
-  CustomDomainHostedZoneId:
-    Condition: HasDomainName
-    Description: Custom domain regional hosted zone ID
-    Value: !GetAtt CustomDomain.RegionalHostedZoneId
+  # CustomDomainName:
+  #   Condition: HasDomainName
+  #   Description: Custom domain regional domain name
+  #   Value: !GetAtt CustomDomain.RegionalDomainName
+  # 
+  # CustomDomainHostedZoneId:
+  #   Condition: HasDomainName
+  #   Description: Custom domain regional hosted zone ID
+  #   Value: !GetAtt CustomDomain.RegionalHostedZoneId
