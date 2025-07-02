@@ -1,0 +1,184 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Numbr Billing - SaaS Billing System
+
+Parameters:
+  Environment:
+    Type: String
+    AllowedValues: [dev, stg, prod]
+    Description: Environment name
+  
+  DatabaseUrl:
+    Type: String
+    NoEcho: true
+    Description: MySQL database connection URL
+  
+  AsaasApiKey:
+    Type: String
+    NoEcho: true
+    Description: Asaas API key
+  
+  AsaasWebhookToken:
+    Type: String
+    NoEcho: true
+    Description: Asaas webhook validation token
+  
+  AdminEmail:
+    Type: String
+    NoEcho: true
+    Description: Admin panel email
+  
+  AdminPassword:
+    Type: String
+    NoEcho: true
+    Description: Admin panel password
+
+  LambdaS3Bucket:
+    Type: String
+    Description: S3 bucket containing Lambda code
+  
+  LambdaS3Key:
+    Type: String
+    Description: S3 key for Lambda code
+  
+  LayerS3Key:
+    Type: String
+    Description: S3 key for Layer code
+    Default: ""
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 1024
+    Runtime: nodejs20.x
+    Environment:
+      Variables:
+        NODE_ENV: production
+        AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+
+Conditions:
+  IsProd: !Equals [!Ref Environment, prod]
+  HasLayer: !Not [!Equals [!Ref LayerS3Key, ""]]
+
+Resources:
+  # API Gateway
+  Api:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub numbr-billing-${Environment}-api
+      StageName: !Ref Environment
+      Cors:
+        AllowMethods: "'*'"
+        AllowHeaders: "'*'"
+        AllowOrigin: "'*'"
+      BinaryMediaTypes:
+        - '*/*'
+
+  # Lambda Layer for Dependencies (only if layer exists)
+  DependenciesLayer:
+    Type: AWS::Serverless::LayerVersion
+    Condition: HasLayer
+    Properties:
+      LayerName: !Sub numbr-billing-${Environment}-deps
+      ContentUri: 
+        Bucket: !Ref LambdaS3Bucket
+        Key: !Ref LayerS3Key
+      CompatibleRuntimes:
+        - nodejs20.x
+      RetentionPolicy: Delete
+
+  # Lambda Function
+  BillingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub numbr-billing-${Environment}-function
+      CodeUri:
+        Bucket: !Ref LambdaS3Bucket
+        Key: !Ref LambdaS3Key
+      Handler: dist/lambda.handler
+      Layers:
+        - !If 
+          - HasLayer
+          - !Ref DependenciesLayer
+          - !Ref AWS::NoValue
+      Environment:
+        Variables:
+          DATABASE_URL: !Ref DatabaseUrl
+          ASAAS_API_KEY: !Ref AsaasApiKey
+          ASAAS_API_URL: !If 
+            - IsProd
+            - https://api.asaas.com/v3
+            - https://sandbox.asaas.com/api/v3
+          ASAAS_WEBHOOK_TOKEN: !Ref AsaasWebhookToken
+          ADMIN_EMAIL: !Ref AdminEmail
+          ADMIN_PASSWORD: !Ref AdminPassword
+          PORT: 3000
+          IS_LAMBDA: true
+      Events:
+        ProxyApiRoot:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /
+            Method: ANY
+        ProxyApiGreedy:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /{proxy+}
+            Method: ANY
+      Policies:
+        - VPCAccessPolicy: {}
+        - Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:numbr-billing/${Environment}/*
+          - Effect: Allow
+            Action:
+              - rds:DescribeDBInstances
+              - rds:DescribeDBClusters
+            Resource: '*'
+
+  # CloudWatch Log Group
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/numbr-billing-${Environment}-function
+      RetentionInDays: !If [IsProd, 30, 7]
+
+  # Lambda Function URL (for direct access if needed)
+  FunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      AuthType: NONE
+      TargetFunctionArn: !GetAtt BillingFunction.Arn
+      Cors:
+        AllowOrigins:
+          - '*'
+        AllowMethods:
+          - '*'
+        AllowHeaders:
+          - '*'
+
+  # Permission for Function URL
+  FunctionUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref BillingFunction
+      Principal: '*'
+      Action: lambda:InvokeFunctionUrl
+      FunctionUrlAuthType: NONE
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway URL
+    Value: !Sub https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
+  
+  FunctionUrl:
+    Description: Lambda Function URL
+    Value: !GetAtt FunctionUrl.FunctionUrl
+  
+  FunctionArn:
+    Description: Lambda Function ARN
+    Value: !GetAtt BillingFunction.Arn

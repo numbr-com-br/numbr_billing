@@ -25,13 +25,17 @@ cp -r prisma lambda-dist/
 
 # Install production dependencies in lambda-dist
 cd lambda-dist
-npm ci --omit=dev
+npm ci --omit=dev --no-fund --no-audit
 cd ..
 
 # Generate Prisma client
 cd lambda-dist
-npx prisma generate
+npx prisma generate --generator client
 cd ..
+
+# Remove Prisma CLI which is not needed at runtime
+rm -rf lambda-dist/node_modules/prisma
+rm -rf lambda-dist/node_modules/.bin/prisma
 
 # Create layer with heavy dependencies
 echo "Creating Lambda layer..."
@@ -44,6 +48,9 @@ LAYER_DEPS=(
   "express-session"
   "@vendia/serverless-express"
   "axios"
+  "@prisma/client"
+  "@prisma/engines"
+  ".prisma"
 )
 
 # Move layer dependencies
@@ -74,6 +81,12 @@ find lambda-dist -name "*.ts" -not -path "*/node_modules/*" -delete 2>/dev/null 
 find lambda-dist -name "test" -type d -exec rm -rf {} + 2>/dev/null || true
 find lambda-dist -name "tests" -type d -exec rm -rf {} + 2>/dev/null || true
 find lambda-dist -name ".git" -type d -exec rm -rf {} + 2>/dev/null || true
+find lambda-dist -name "*.d.ts" -not -path "*/node_modules/@types/*" -not -path "*/@prisma/*" -delete 2>/dev/null || true
+find lambda-dist -name "*.flow" -delete 2>/dev/null || true
+find lambda-dist -name "docs" -type d -exec rm -rf {} + 2>/dev/null || true
+find lambda-dist -name "example" -type d -exec rm -rf {} + 2>/dev/null || true
+find lambda-dist -name "examples" -type d -exec rm -rf {} + 2>/dev/null || true
+rm -rf lambda-dist/node_modules/*/node_modules/.bin 2>/dev/null || true
 
 # Create Lambda deployment package
 cd lambda-dist

@@ -106,12 +106,8 @@ jobs:
         
         BUCKET_NAME="numbr-billing-deployment-${{ steps.aws-account.outputs.account_id }}-${{ steps.aws-account.outputs.region }}"
         
-        # Update template with S3 locations
-        sed -i "s|CodeUri: ../|CodeUri: s3://$BUCKET_NAME/$LAMBDA_S3_KEY|g" cloudformation/template.yaml
-        sed -i "s|ContentUri: ../layer/|ContentUri: s3://$BUCKET_NAME/$LAYER_S3_KEY|g" cloudformation/template.yaml
-        
         aws cloudformation deploy \
-          --template-file cloudformation/template.yaml \
+          --template-file cloudformation/deploy-template.yaml \
           --stack-name ${{ steps.set-env.outputs.stack_name }} \
           --s3-bucket $BUCKET_NAME \
           --parameter-overrides \
@@ -121,6 +117,9 @@ jobs:
             AsaasWebhookToken="${{ vars.ASAAS_WEBHOOK_TOKEN }}" \
             AdminEmail="${{ vars.ADMIN_EMAIL }}" \
             AdminPassword="${{ vars.ADMIN_PASSWORD }}" \
+            LambdaS3Bucket=$BUCKET_NAME \
+            LambdaS3Key=$LAMBDA_S3_KEY \
+            LayerS3Key=$LAYER_S3_KEY \
           --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
           --no-fail-on-empty-changeset
 
