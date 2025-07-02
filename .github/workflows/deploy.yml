@@ -99,6 +99,22 @@ jobs:
           echo "LAYER_S3_KEY=layer-${{ steps.set-env.outputs.env_name }}-$TIMESTAMP.zip" >> $GITHUB_ENV
         fi
 
+    - name: Check and cleanup failed stack
+      run: |
+        STACK_STATUS=$(aws cloudformation describe-stacks \
+          --stack-name ${{ steps.set-env.outputs.stack_name }} \
+          --query 'Stacks[0].StackStatus' \
+          --output text 2>/dev/null || echo "DOES_NOT_EXIST")
+        
+        echo "Current stack status: $STACK_STATUS"
+        
+        if [[ "$STACK_STATUS" == "ROLLBACK_COMPLETE" || "$STACK_STATUS" == "CREATE_FAILED" || "$STACK_STATUS" == "DELETE_FAILED" ]]; then
+          echo "Stack is in failed state. Deleting..."
+          aws cloudformation delete-stack --stack-name ${{ steps.set-env.outputs.stack_name }}
+          aws cloudformation wait stack-delete-complete --stack-name ${{ steps.set-env.outputs.stack_name }}
+          echo "Stack deleted successfully"
+        fi
+
     - name: Deploy CloudFormation stack
       run: |
         echo "Deploying stack: ${{ steps.set-env.outputs.stack_name }}"
@@ -123,30 +139,6 @@ jobs:
           --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
           --no-fail-on-empty-changeset
 
-    - name: Update Lambda function code
-      run: |
-        aws lambda update-function-code \
-          --function-name numbr-billing-${{ steps.set-env.outputs.env_name }}-function \
-          --zip-file fileb://lambda-package.zip
-
-    - name: Wait for Lambda update
-      run: |
-        aws lambda wait function-updated \
-          --function-name numbr-billing-${{ steps.set-env.outputs.env_name }}-function
-
-    - name: Update Lambda Layer
-      if: hashFiles('layer-package.zip') != ''
-      run: |
-        LAYER_VERSION=$(aws lambda publish-layer-version \
-          --layer-name numbr-billing-${{ steps.set-env.outputs.env_name }}-deps \
-          --zip-file fileb://layer-package.zip \
-          --compatible-runtimes nodejs20.x \
-          --query 'Version' \
-          --output text)
-        
-        aws lambda update-function-configuration \
-          --function-name numbr-billing-${{ steps.set-env.outputs.env_name }}-function \
-          --layers arn:aws:lambda:${{ secrets.AWS_REGION }}:${{ secrets.AWS_ACCOUNT_ID }}:layer:numbr-billing-${{ steps.set-env.outputs.env_name }}-deps:$LAYER_VERSION
 
     - name: Get API Gateway URL
       id: get-api-url
