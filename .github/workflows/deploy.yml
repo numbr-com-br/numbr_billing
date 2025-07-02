@@ -61,15 +61,22 @@ jobs:
         chmod +x scripts/build-lambda.sh
         ./scripts/build-lambda.sh ${{ steps.set-env.outputs.env_name }}
 
+    - name: Get AWS Account Info
+      id: aws-account
+      run: |
+        ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+        echo "account_id=$ACCOUNT_ID" >> $GITHUB_OUTPUT
+        echo "region=${{ secrets.AWS_REGION }}" >> $GITHUB_OUTPUT
+
     - name: Create deployment bucket
       run: |
-        BUCKET_NAME="numbr-billing-deployment-${{ secrets.AWS_ACCOUNT_ID }}-${{ secrets.AWS_REGION }}"
+        BUCKET_NAME="numbr-billing-deployment-${{ steps.aws-account.outputs.account_id }}-${{ steps.aws-account.outputs.region }}"
         aws s3api head-bucket --bucket $BUCKET_NAME 2>/dev/null || \
-        aws s3api create-bucket --bucket $BUCKET_NAME --region ${{ secrets.AWS_REGION }} || true
+        aws s3api create-bucket --bucket $BUCKET_NAME --region ${{ steps.aws-account.outputs.region }} || true
 
     - name: Upload Lambda package to S3
       run: |
-        BUCKET_NAME="numbr-billing-deployment-${{ secrets.AWS_ACCOUNT_ID }}-${{ secrets.AWS_REGION }}"
+        BUCKET_NAME="numbr-billing-deployment-${{ steps.aws-account.outputs.account_id }}-${{ steps.aws-account.outputs.region }}"
         TIMESTAMP=$(date +%Y%m%d%H%M%S)
         
         aws s3 cp lambda-package.zip s3://$BUCKET_NAME/lambda-${{ steps.set-env.outputs.env_name }}-$TIMESTAMP.zip
@@ -85,7 +92,7 @@ jobs:
         echo "Deploying stack: ${{ steps.set-env.outputs.stack_name }}"
         echo "Environment: ${{ steps.set-env.outputs.env_name }}"
         
-        BUCKET_NAME="numbr-billing-deployment-${{ secrets.AWS_ACCOUNT_ID }}-${{ secrets.AWS_REGION }}"
+        BUCKET_NAME="numbr-billing-deployment-${{ steps.aws-account.outputs.account_id }}-${{ steps.aws-account.outputs.region }}"
         
         # Update template with S3 locations
         sed -i "s|CodeUri: ../|CodeUri: s3://$BUCKET_NAME/$LAMBDA_S3_KEY|g" cloudformation/template.yaml
