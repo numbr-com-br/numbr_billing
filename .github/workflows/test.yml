@@ -26,7 +26,14 @@ jobs:
     - name: Setup test environment
       run: |
         echo "Setting up test environment..."
-        echo "DATABASE_URL=${{ secrets.TEST_DATABASE_URL }}" > .env
+        # Debug: Check if secret is accessible
+        if [ -z "${{ secrets.TEST_DATABASE_URL }}" ]; then
+          echo "WARNING: TEST_DATABASE_URL appears to be empty in GitHub secrets"
+          echo "Using hardcoded test database URL"
+          echo "DATABASE_URL=mysql://numbr_billing_test:TestDB2024@wink-app.cuiqag6yzukq.us-east-1.rds.amazonaws.com:3306/numbr_billing_test" > .env
+        else
+          echo "DATABASE_URL=${{ secrets.TEST_DATABASE_URL }}" > .env
+        fi
         echo "ASAAS_API_KEY=test_api_key" >> .env
         echo "ASAAS_API_URL=https://sandbox.asaas.com/api/v3" >> .env
         echo "ASAAS_WEBHOOK_TOKEN=test_webhook_token" >> .env
@@ -57,10 +64,14 @@ jobs:
         
     - name: Run Prisma migrations
       run: |
-        echo "Running Prisma migrations with DATABASE_URL from env..."
+        echo "Running Prisma migrations..."
+        # If secret is empty, use hardcoded URL
+        if [ -z "${{ secrets.TEST_DATABASE_URL }}" ]; then
+          export DATABASE_URL="mysql://numbr_billing_test:TestDB2024@wink-app.cuiqag6yzukq.us-east-1.rds.amazonaws.com:3306/numbr_billing_test"
+        else
+          export DATABASE_URL="${{ secrets.TEST_DATABASE_URL }}"
+        fi
         npm run prisma:migrate:test
-      env:
-        DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
 
     - name: Run linter
       run: npm run lint
@@ -68,7 +79,7 @@ jobs:
     - name: Run tests with coverage
       run: npm run test:coverage
       env:
-        DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+        DATABASE_URL: mysql://numbr_billing_test:TestDB2024@wink-app.cuiqag6yzukq.us-east-1.rds.amazonaws.com:3306/numbr_billing_test
         ASAAS_API_KEY: test_api_key
         ASAAS_API_URL: https://sandbox.asaas.com/api/v3
         ASAAS_WEBHOOK_TOKEN: test_webhook_token
