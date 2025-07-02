@@ -13,17 +13,20 @@ echo "Building Lambda package for environment: $ENV"
 rm -rf lambda-dist layer lambda-package.zip layer-package.zip
 
 # Create directories
-mkdir -p lambda-dist layer/nodejs
+mkdir -p lambda-dist/node_modules layer/nodejs/node_modules
 
 # Copy built application
 cp -r dist/* lambda-dist/
 cp package.json lambda-dist/
 cp package-lock.json lambda-dist/
 
-# Copy Prisma files
-cp -r node_modules/.prisma lambda-dist/node_modules/
-cp -r node_modules/@prisma/client lambda-dist/node_modules/@prisma/
+# Copy Prisma schema
 cp -r prisma lambda-dist/
+
+# Install production dependencies in lambda-dist
+cd lambda-dist
+npm ci --omit=dev
+cd ..
 
 # Generate Prisma client
 cd lambda-dist
@@ -43,32 +46,31 @@ LAYER_DEPS=(
   "axios"
 )
 
-# Copy layer dependencies
+# Move layer dependencies
 for dep in "${LAYER_DEPS[@]}"; do
-  if [ -d "node_modules/$dep" ]; then
-    cp -r "node_modules/$dep" "layer/nodejs/node_modules/$dep"
+  if [ -d "lambda-dist/node_modules/$dep" ]; then
+    parent_dir=$(dirname "$dep")
+    if [ "$parent_dir" != "." ]; then
+      mkdir -p "layer/nodejs/node_modules/$parent_dir"
+    fi
+    mv "lambda-dist/node_modules/$dep" "layer/nodejs/node_modules/$dep"
   fi
 done
 
 # Create layer package
-cd layer
-zip -r ../layer-package.zip . -q
-cd ..
-
-# Remove layer dependencies from main package
-for dep in "${LAYER_DEPS[@]}"; do
-  rm -rf "lambda-dist/node_modules/$dep"
-done
-
-# Copy remaining production dependencies
-cd lambda-dist
-npm ci --omit=dev --production
-cd ..
+if [ -d "layer/nodejs/node_modules" ] && [ "$(ls -A layer/nodejs/node_modules)" ]; then
+  cd layer
+  zip -r ../layer-package.zip . -q
+  cd ..
+  echo "Layer package created"
+else
+  echo "No dependencies for layer, skipping layer creation"
+fi
 
 # Remove unnecessary files
-find lambda-dist -name "*.md" -delete
-find lambda-dist -name "*.map" -delete
-find lambda-dist -name "*.ts" -not -path "*/node_modules/*" -delete
+find lambda-dist -name "*.md" -delete 2>/dev/null || true
+find lambda-dist -name "*.map" -delete 2>/dev/null || true
+find lambda-dist -name "*.ts" -not -path "*/node_modules/*" -delete 2>/dev/null || true
 find lambda-dist -name "test" -type d -exec rm -rf {} + 2>/dev/null || true
 find lambda-dist -name "tests" -type d -exec rm -rf {} + 2>/dev/null || true
 find lambda-dist -name ".git" -type d -exec rm -rf {} + 2>/dev/null || true
@@ -83,4 +85,6 @@ rm -rf lambda-dist layer
 
 echo "Lambda package created:"
 echo "  - lambda-package.zip ($(du -h lambda-package.zip | cut -f1))"
-echo "  - layer-package.zip ($(du -h layer-package.zip | cut -f1))"
+if [ -f "layer-package.zip" ]; then
+  echo "  - layer-package.zip ($(du -h layer-package.zip | cut -f1))"
+fi
