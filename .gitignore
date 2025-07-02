@@ -7,3 +7,6 @@ dist
 .localfiles
 .prisma
 /src/generated/prisma
+tsconfig.tsbuildinfo
+lambda-package.zip
+layer-package.zip
