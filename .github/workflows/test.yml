@@ -25,18 +25,21 @@ jobs:
 
     - name: Setup test environment
       run: |
-        cat > .env << EOF
-        DATABASE_URL=${{ secrets.TEST_DATABASE_URL }}
-        ASAAS_API_KEY=test_api_key
-        ASAAS_API_URL=https://sandbox.asaas.com/api/v3
-        ASAAS_WEBHOOK_TOKEN=test_webhook_token
-        PORT=3001
-        ADMIN_EMAIL=test@numbr.com
-        ADMIN_PASSWORD=test123
-        EOF
+        echo "Setting up test environment..."
+        echo "DATABASE_URL=${{ secrets.TEST_DATABASE_URL }}" > .env
+        echo "ASAAS_API_KEY=test_api_key" >> .env
+        echo "ASAAS_API_URL=https://sandbox.asaas.com/api/v3" >> .env
+        echo "ASAAS_WEBHOOK_TOKEN=test_webhook_token" >> .env
+        echo "PORT=3001" >> .env
+        echo "ADMIN_EMAIL=test@numbr.com" >> .env
+        echo "ADMIN_PASSWORD=test123" >> .env
+        echo "Contents of .env:"
+        cat .env | sed 's/mysql:\/\/[^@]*@/mysql:\/\/***@/g'
         
     - name: Run Prisma migrations
       run: npm run prisma:migrate:test
+      env:
+        DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
 
     - name: Run linter
       run: npm run lint
