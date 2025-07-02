@@ -3,9 +3,14 @@ import { ResourceWithOptions } from 'adminjs'
 import { prisma } from '../services/prisma.service.js'
 
 export function setupAdminResources(dmmf: DMMF.Document): ResourceWithOptions[] {
+  const models = dmmf.datamodel.models.reduce((acc, model) => {
+    acc[model.name] = model
+    return acc
+  }, {} as Record<string, DMMF.Model>)
+  
   return [
     {
-      resource: { model: dmmf.modelMap.Plan, client: prisma },
+      resource: { model: models.Plan, client: prisma },
       options: {
         navigation: {
           name: 'Billing',
@@ -38,7 +43,7 @@ export function setupAdminResources(dmmf: DMMF.Document): ResourceWithOptions[] 
       },
     },
     {
-      resource: { model: dmmf.modelMap.Addon, client: prisma },
+      resource: { model: models.Addon, client: prisma },
       options: {
         navigation: {
           name: 'Billing',
@@ -65,7 +70,7 @@ export function setupAdminResources(dmmf: DMMF.Document): ResourceWithOptions[] 
       },
     },
     {
-      resource: { model: dmmf.modelMap.Customer, client: prisma },
+      resource: { model: models.Customer, client: prisma },
       options: {
         navigation: {
           name: 'Customers',
@@ -78,7 +83,7 @@ export function setupAdminResources(dmmf: DMMF.Document): ResourceWithOptions[] 
       },
     },
     {
-      resource: { model: dmmf.modelMap.Subscription, client: prisma },
+      resource: { model: models.Subscription, client: prisma },
       options: {
         navigation: {
           name: 'Subscriptions',
@@ -91,7 +96,7 @@ export function setupAdminResources(dmmf: DMMF.Document): ResourceWithOptions[] 
       },
     },
     {
-      resource: { model: dmmf.modelMap.Payment, client: prisma },
+      resource: { model: models.Payment, client: prisma },
       options: {
         navigation: {
           name: 'Payments',
@@ -116,7 +121,7 @@ export function setupAdminResources(dmmf: DMMF.Document): ResourceWithOptions[] 
       },
     },
     {
-      resource: { model: dmmf.modelMap.WebhookLog, client: prisma },
+      resource: { model: models.WebhookLog, client: prisma },
       options: {
         navigation: {
           name: 'System',

@@ -16,7 +16,7 @@ interface CheckoutRequest {
   billingType: 'BOLETO' | 'CREDIT_CARD' | 'PIX'
 }
 
-checkoutRouter.post('/start', async (req, res) => {
+checkoutRouter.post('/start', async (req, res): Promise<void> => {
   try {
     const { planId, addonIds = [], customer, billingType } = req.body as CheckoutRequest
 
@@ -25,7 +25,8 @@ checkoutRouter.post('/start', async (req, res) => {
     })
 
     if (!plan) {
-      return res.status(404).json({ error: 'Plan not found or inactive' })
+      res.status(404).json({ error: 'Plan not found or inactive' })
+      return
     }
 
     const addons = addonIds.length > 0
@@ -116,7 +117,7 @@ checkoutRouter.post('/start', async (req, res) => {
   }
 })
 
-checkoutRouter.get('/plans', async (req, res) => {
+checkoutRouter.get('/plans', async (_req, res): Promise<void> => {
   try {
     const plans = await prisma.plan.findMany({
       where: { isActive: true },
@@ -135,7 +136,7 @@ checkoutRouter.get('/plans', async (req, res) => {
   }
 })
 
-checkoutRouter.get('/subscription/:id', async (req, res) => {
+checkoutRouter.get('/subscription/:id', async (req, res): Promise<void> => {
   try {
     const subscription = await prisma.subscription.findUnique({
       where: { id: req.params.id },
@@ -155,7 +156,8 @@ checkoutRouter.get('/subscription/:id', async (req, res) => {
     })
 
     if (!subscription) {
-      return res.status(404).json({ error: 'Subscription not found' })
+      res.status(404).json({ error: 'Subscription not found' })
+      return
     }
 
     res.json(subscription)

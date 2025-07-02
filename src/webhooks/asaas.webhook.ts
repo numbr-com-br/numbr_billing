@@ -49,11 +49,12 @@ const paymentStatusMap: Record<string, PaymentStatus> = {
   AWAITING_RISK_ANALYSIS: PaymentStatus.PENDING,
 }
 
-webhookRouter.post('/asaas', async (req, res) => {
+webhookRouter.post('/asaas', async (req, res): Promise<void> => {
   const webhookToken = req.headers['asaas-access-token']
 
   if (webhookToken !== config.asaas.webhookToken) {
-    return res.status(401).json({ error: 'Unauthorized' })
+    res.status(401).json({ error: 'Unauthorized' })
+    return
   }
 
   const payload: AsaasWebhookPayload = req.body
