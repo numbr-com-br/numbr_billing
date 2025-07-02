@@ -24,9 +24,15 @@ jobs:
       run: npm ci
 
     - name: Setup test environment
+      env:
+        TEST_DB_URL: ${{ secrets.TEST_DATABASE_URL }}
       run: |
         echo "Setting up test environment..."
-        echo "DATABASE_URL=${{ secrets.TEST_DATABASE_URL }}" > .env
+        if [ -z "$TEST_DB_URL" ]; then
+          echo "ERROR: TEST_DATABASE_URL secret is empty!"
+          exit 1
+        fi
+        echo "DATABASE_URL=${TEST_DB_URL}" > .env
         echo "ASAAS_API_KEY=test_api_key" >> .env
         echo "ASAAS_API_URL=https://sandbox.asaas.com/api/v3" >> .env
         echo "ASAAS_WEBHOOK_TOKEN=test_webhook_token" >> .env
@@ -36,8 +42,29 @@ jobs:
         echo "Contents of .env:"
         cat .env | sed 's/mysql:\/\/[^@]*@/mysql:\/\/***@/g'
         
+    - name: Debug environment
+      run: |
+        echo "Checking if DATABASE_URL is set in environment..."
+        if [ -z "$DATABASE_URL" ]; then
+          echo "DATABASE_URL is empty in environment"
+        else
+          echo "DATABASE_URL is set in environment (hidden for security)"
+        fi
+        echo "Checking .env file..."
+        if [ -f .env ]; then
+          echo ".env file exists"
+          echo "First line of .env (should be DATABASE_URL):"
+          head -n1 .env | sed 's/mysql:\/\/[^@]*@/mysql:\/\/***@/g'
+        else
+          echo ".env file does not exist"
+        fi
+      env:
+        DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+        
     - name: Run Prisma migrations
-      run: npm run prisma:migrate:test
+      run: |
+        echo "Running Prisma migrations with DATABASE_URL from env..."
+        npm run prisma:migrate:test
       env:
         DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
 
