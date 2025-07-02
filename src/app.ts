@@ -2,8 +2,8 @@ import express from 'express'
 import AdminJS from 'adminjs'
 import AdminJSExpress from '@adminjs/express'
 import session from 'express-session'
-import { Database, Resource, getModelByName } from '@adminjs/prisma'
-import { DMMFClass } from '@prisma/client/runtime/library'
+import { Database, Resource } from '@adminjs/prisma'
+import { DMMF } from '@prisma/client/runtime/library'
 
 import { config, validateEnv } from './config/env.js'
 import { prisma, connectDatabase } from './services/prisma.service.js'
@@ -27,7 +27,7 @@ app.use('/api/checkout', checkoutRouter)
 const setupApp = async () => {
   await connectDatabase()
 
-  const dmmf = (prisma as any)._dmmf as DMMFClass
+  const dmmf = (prisma as any)._dmmf as DMMF.Document
 
   const admin = new AdminJS({
     resources: setupAdminResources(dmmf),
@@ -83,7 +83,7 @@ const setupApp = async () => {
   
   app.use(admin.options.rootPath, adminRouter)
 
-  app.get('/health', (req, res) => {
+  app.get('/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() })
   })
 }

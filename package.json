@@ -17,14 +17,16 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "test:unit": "jest --testPathPattern=tests/unit",
-    "test:integration": "jest --testPathPattern=tests/integration",
+    "test:unit": "jest tests/unit",
+    "test:integration": "jest tests/integration",
     "pretest": "prisma migrate deploy"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@eslint/js": "^9.30.1",
+    "@types/aws-lambda": "^8.10.150",
     "@types/express": "^5.0.3",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.0.7",
@@ -41,7 +43,8 @@
     "supertest": "^7.1.1",
     "ts-jest": "^29.4.0",
     "tsx": "^4.20.3",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.35.1"
   },
   "dependencies": {
     "@adminjs/express": "^6.1.1",

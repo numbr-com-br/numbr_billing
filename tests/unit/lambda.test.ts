@@ -2,7 +2,7 @@ import { handler } from '../../src/lambda'
 import { APIGatewayProxyEvent, Context } from 'aws-lambda'
 
 jest.mock('@vendia/serverless-express', () => ({
-  default: jest.fn(() => jest.fn((event, context, callback) => {
+  default: jest.fn(() => jest.fn((_event, _context, callback) => {
     callback(null, {
       statusCode: 200,
       body: JSON.stringify({ message: 'mocked response' }),
@@ -52,7 +52,8 @@ describe('Lambda Handler', () => {
   })
 
   it('should handle requests successfully', async () => {
-    const result = await handler(mockEvent, mockContext)
+    const callback = jest.fn()
+    const result = await handler(mockEvent, mockContext, callback)
 
     expect(result).toEqual({
       statusCode: 200,
@@ -61,16 +62,18 @@ describe('Lambda Handler', () => {
   })
 
   it('should reuse serverless express instance on subsequent calls', async () => {
-    await handler(mockEvent, mockContext)
-    await handler(mockEvent, mockContext)
+    const callback = jest.fn()
+    await handler(mockEvent, mockContext, callback)
+    await handler(mockEvent, mockContext, callback)
 
     const serverlessExpress = require('@vendia/serverless-express').default
     expect(serverlessExpress).toHaveBeenCalledTimes(1)
   })
 
   it('should handle different HTTP methods', async () => {
+    const callback = jest.fn()
     const postEvent = { ...mockEvent, httpMethod: 'POST' }
-    const result = await handler(postEvent, mockContext)
+    const result = await handler(postEvent, mockContext, callback)
 
     expect(result).toEqual({
       statusCode: 200,
@@ -79,8 +82,9 @@ describe('Lambda Handler', () => {
   })
 
   it('should handle different paths', async () => {
+    const callback = jest.fn()
     const apiEvent = { ...mockEvent, path: '/api/checkout/plans' }
-    const result = await handler(apiEvent, mockContext)
+    const result = await handler(apiEvent, mockContext, callback)
 
     expect(result).toEqual({
       statusCode: 200,

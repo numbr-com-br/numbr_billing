@@ -1,8 +1,8 @@
-import { DMMFClass } from '@prisma/client/runtime/library'
+import { DMMF } from '@prisma/client/runtime/library'
 import { ResourceWithOptions } from 'adminjs'
 import { prisma } from '../services/prisma.service.js'
 
-export function setupAdminResources(dmmf: DMMFClass): ResourceWithOptions[] {
+export function setupAdminResources(dmmf: DMMF.Document): ResourceWithOptions[] {
   return [
     {
       resource: { model: dmmf.modelMap.Plan, client: prisma },

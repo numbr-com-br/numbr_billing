@@ -1,19 +1,22 @@
 import axios from 'axios'
-import { asaasService } from '../../../src/services/asaas.service'
 
 jest.mock('axios')
 const mockedAxios = axios as jest.Mocked<typeof axios>
 
-describe('AsaasService', () => {
-  let mockAxiosInstance: any
+// Mock axios.create before importing asaasService
+const mockAxiosInstance = {
+  post: jest.fn(),
+  get: jest.fn(),
+  delete: jest.fn(),
+}
+mockedAxios.create = jest.fn().mockReturnValue(mockAxiosInstance)
 
+// Import after setting up the mock
+import { asaasService } from '../../../src/services/asaas.service'
+
+describe('AsaasService', () => {
   beforeEach(() => {
-    mockAxiosInstance = {
-      post: jest.fn(),
-      get: jest.fn(),
-      delete: jest.fn(),
-    }
-    mockedAxios.create.mockReturnValue(mockAxiosInstance)
+    jest.clearAllMocks()
   })
 
   afterEach(() => {
