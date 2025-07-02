@@ -56,17 +56,17 @@ jobs:
         role-to-assume: ${{ secrets[format('AWS_ROLE_ARN_{0}', steps.set-env.outputs.env_name == 'dev' && 'DEV' || steps.set-env.outputs.env_name == 'stg' && 'STG' || 'PROD')] }}
         aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Build Lambda package
-      run: |
-        chmod +x scripts/build-lambda.sh
-        ./scripts/build-lambda.sh ${{ steps.set-env.outputs.env_name }}
-
     - name: Get AWS Account Info
       id: aws-account
       run: |
         ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
         echo "account_id=$ACCOUNT_ID" >> $GITHUB_OUTPUT
         echo "region=${{ secrets.AWS_REGION }}" >> $GITHUB_OUTPUT
+
+    - name: Build Lambda package
+      run: |
+        chmod +x scripts/build-lambda.sh
+        ./scripts/build-lambda.sh ${{ steps.set-env.outputs.env_name }}
 
     - name: Create deployment bucket
       run: |
