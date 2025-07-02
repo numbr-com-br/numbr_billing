@@ -76,13 +76,23 @@ jobs:
 
     - name: Upload Lambda package to S3
       run: |
+        echo "Checking for Lambda packages..."
+        ls -la *.zip || echo "No zip files found"
+        
         BUCKET_NAME="numbr-billing-deployment-${{ steps.aws-account.outputs.account_id }}-${{ steps.aws-account.outputs.region }}"
         TIMESTAMP=$(date +%Y%m%d%H%M%S)
         
+        if [ ! -f lambda-package.zip ]; then
+          echo "ERROR: lambda-package.zip not found!"
+          exit 1
+        fi
+        
+        echo "Uploading lambda-package.zip to s3://$BUCKET_NAME/lambda-${{ steps.set-env.outputs.env_name }}-$TIMESTAMP.zip"
         aws s3 cp lambda-package.zip s3://$BUCKET_NAME/lambda-${{ steps.set-env.outputs.env_name }}-$TIMESTAMP.zip
         echo "LAMBDA_S3_KEY=lambda-${{ steps.set-env.outputs.env_name }}-$TIMESTAMP.zip" >> $GITHUB_ENV
         
         if [ -f layer-package.zip ]; then
+          echo "Uploading layer-package.zip to s3://$BUCKET_NAME/layer-${{ steps.set-env.outputs.env_name }}-$TIMESTAMP.zip"
           aws s3 cp layer-package.zip s3://$BUCKET_NAME/layer-${{ steps.set-env.outputs.env_name }}-$TIMESTAMP.zip
           echo "LAYER_S3_KEY=layer-${{ steps.set-env.outputs.env_name }}-$TIMESTAMP.zip" >> $GITHUB_ENV
         fi
