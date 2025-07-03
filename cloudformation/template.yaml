@@ -68,7 +68,7 @@ Resources:
     Properties:
       FunctionName: !Sub numbr-billing-${Environment}-function
       CodeUri: ../
-      Handler: lambda.handler
+      Handler: dist/lambda-wrapper.handler
       Layers:
         - !Ref DependenciesLayer
       Environment:

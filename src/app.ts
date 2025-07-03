@@ -2,6 +2,7 @@ import express from 'express'
 import AdminJS from 'adminjs'
 import AdminJSExpress from '@adminjs/express'
 import session from 'express-session'
+// @ts-ignore
 import { Database, Resource } from '@adminjs/prisma'
 import { DMMF } from '@prisma/client/runtime/library'
 
