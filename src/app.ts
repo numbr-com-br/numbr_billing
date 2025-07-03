@@ -27,7 +27,21 @@ app.use('/api/checkout', checkoutRouter)
 const setupApp = async () => {
   await connectDatabase()
 
-  const dmmf = (prisma as any)._dmmf as DMMF.Document
+  // Skip AdminJS in Lambda environment for now
+  if (process.env.IS_LAMBDA === 'true') {
+    console.log('Running in Lambda mode - AdminJS disabled')
+    app.get('/health', (_req, res) => {
+      res.json({ status: 'ok', timestamp: new Date().toISOString() })
+    })
+    return
+  }
+
+  // Get DMMF from Prisma internals
+  const dmmf = ((prisma as any)._dmmf || (prisma as any)._engine?.datamodel) as DMMF.Document
+  
+  if (!dmmf) {
+    throw new Error('Unable to get DMMF from Prisma')
+  }
 
   const admin = new AdminJS({
     resources: setupAdminResources(dmmf),

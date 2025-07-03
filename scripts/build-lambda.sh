@@ -16,9 +16,12 @@ rm -rf lambda-dist layer lambda-package.zip layer-package.zip
 mkdir -p lambda-dist/node_modules layer/nodejs/node_modules
 
 # Copy built application
-cp -r dist/* lambda-dist/
+cp -r dist lambda-dist/
 cp package.json lambda-dist/
 cp package-lock.json lambda-dist/
+
+# Copy CommonJS wrapper
+cp src/lambda-wrapper.cjs lambda-dist/dist/
 
 # Copy Prisma schema
 cp -r prisma lambda-dist/

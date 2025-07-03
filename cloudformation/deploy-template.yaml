@@ -97,7 +97,7 @@ Resources:
       CodeUri:
         Bucket: !Ref LambdaS3Bucket
         Key: !Ref LambdaS3Key
-      Handler: dist/lambda.handler
+      Handler: dist/lambda-wrapper.handler
       Layers:
         - !If 
           - HasLayer
