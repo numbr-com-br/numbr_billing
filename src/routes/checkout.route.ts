@@ -1,6 +1,6 @@
 import { Router } from 'express'
-import { prisma } from '../services/prisma.service.js'
-import { asaasService } from '../services/asaas.service.js'
+import { prisma } from '../services/prisma.service'
+import { asaasService } from '../services/asaas.service'
 
 export const checkoutRouter = Router()
 

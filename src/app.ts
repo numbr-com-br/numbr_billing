@@ -5,12 +5,12 @@ import session from 'express-session'
 import { Database, Resource } from '@adminjs/prisma'
 import { DMMF } from '@prisma/client/runtime/library'
 
-import { config, validateEnv } from './config/env.js'
-import { prisma, connectDatabase } from './services/prisma.service.js'
-import { setupAdminResources } from './admin/resources.js'
-import { webhookRouter } from './webhooks/asaas.webhook.js'
-import { checkoutRouter } from './routes/checkout.route.js'
-import { Dashboard } from './admin/dashboard.js'
+import { config, validateEnv } from './config/env'
+import { prisma, connectDatabase } from './services/prisma.service'
+import { setupAdminResources } from './admin/resources'
+import { webhookRouter } from './webhooks/asaas.webhook'
+import { checkoutRouter } from './routes/checkout.route'
+import { Dashboard } from './admin/dashboard'
 
 validateEnv()
 

@@ -1,6 +1,6 @@
 import { configure } from '@vendia/serverless-express'
 import type { Context, APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda'
-import { app } from './app.js'
+import { app } from './app'
 
 let serverlessExpressInstance: any
 

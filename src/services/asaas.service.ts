@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios'
-import { config } from '../config/env.js'
+import { config } from '../config/env'
 
 export interface AsaasCustomer {
   id: string

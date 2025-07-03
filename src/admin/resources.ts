@@ -1,6 +1,6 @@
 import { DMMF } from '@prisma/client/runtime/library'
 import { ResourceWithOptions } from 'adminjs'
-import { prisma } from '../services/prisma.service.js'
+import { prisma } from '../services/prisma.service'
 
 export function setupAdminResources(dmmf: DMMF.Document): ResourceWithOptions[] {
   const models = dmmf.datamodel.models.reduce((acc, model) => {

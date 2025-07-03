@@ -1,6 +1,6 @@
 import { Router } from 'express'
-import { prisma } from '../services/prisma.service.js'
-import { config } from '../config/env.js'
+import { prisma } from '../services/prisma.service'
+import { config } from '../config/env'
 import { PaymentStatus, SubscriptionStatus } from '@prisma/client'
 
 export const webhookRouter = Router()

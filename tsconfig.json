@@ -1,8 +1,10 @@
 {
   "compilerOptions": {
-    "target": "esnext",
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
+    "target": "es2020",
+    "module": "es2020",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
     "lib": ["ES2022"],
     "outDir": "./dist",
     "rootDir": "./src",

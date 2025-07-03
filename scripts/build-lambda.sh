@@ -19,9 +19,12 @@ mkdir -p lambda-dist/node_modules layer/nodejs/node_modules
 cp -r dist lambda-dist/
 cp package.json lambda-dist/
 cp package-lock.json lambda-dist/
+cp lambda.cjs lambda-dist/
 
-# Copy CommonJS wrapper
-cp src/lambda-wrapper.cjs lambda-dist/dist/
+# Add type: module to package.json for Lambda
+cd lambda-dist
+node -e "const p = require('./package.json'); p.type = 'module'; require('fs').writeFileSync('./package.json', JSON.stringify(p, null, 2));"
+cd ..
 
 # Copy Prisma schema
 cp -r prisma lambda-dist/
