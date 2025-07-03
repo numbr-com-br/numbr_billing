@@ -58,7 +58,9 @@ Globals:
 
 Conditions:
   IsProd: !Equals [!Ref Environment, prod]
+  IsStaging: !Equals [!Ref Environment, stg]
   HasLayer: !Not [!Equals [!Ref LayerS3Key, ""]]
+  HasCustomDomain: true
 
 Resources:
   # API Gateway
@@ -170,10 +172,46 @@ Resources:
       Action: lambda:InvokeFunctionUrl
       FunctionUrlAuthType: NONE
 
+  # Custom Domain (only for specific environments)
+  CustomDomain:
+    Type: AWS::ApiGateway::DomainName
+    Condition: HasCustomDomain
+    Properties:
+      DomainName: !If
+        - IsProd
+        - billing.numbr.com.br
+        - !If
+          - IsStaging
+          - billing-staging.numbr.com.br
+          - billing-dev.numbr.com.br
+      RegionalCertificateArn: arn:aws:acm:us-east-1:039426739841:certificate/d3f9e023-0ecc-470e-8295-74f5728c6f26
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  BasePathMapping:
+    Type: AWS::ApiGateway::BasePathMapping
+    Condition: HasCustomDomain
+    Properties:
+      DomainName: !Ref CustomDomain
+      RestApiId: !Ref Api
+      Stage: !Ref Environment
+
 Outputs:
   ApiUrl:
     Description: API Gateway URL
     Value: !Sub https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${Environment}
+  
+  CustomDomainUrl:
+    Description: Custom Domain URL
+    Condition: HasCustomDomain
+    Value: !If
+      - IsProd
+      - https://billing.numbr.com.br
+      - !If
+        - IsStaging
+        - https://billing-staging.numbr.com.br
+        - https://billing-dev.numbr.com.br
   
   FunctionUrl:
     Description: Lambda Function URL
