@@ -15,29 +15,25 @@ rm -rf lambda-dist layer lambda-package.zip layer-package.zip
 # Create directories
 mkdir -p lambda-dist/node_modules layer/nodejs/node_modules
 
-# Copy built application
-cp -r dist lambda-dist/
+# Copy package files first
 cp package.json lambda-dist/
 cp package-lock.json lambda-dist/
+
+# Copy built application
+cp -r dist/* lambda-dist/
 
 # No wrapper needed
 
 # Copy Prisma schema
 cp -r prisma lambda-dist/
 
-# Change to lambda-dist directory
+# Install production dependencies in lambda-dist
 cd lambda-dist
-
-# Install production dependencies
 npm ci --omit=dev --no-fund --no-audit
-cd ..
 
 # Generate Prisma client with correct binary targets for Lambda
-cd lambda-dist
-# Remove any existing generated client
-rm -rf node_modules/.prisma node_modules/@prisma/client/runtime
-# Generate with all binary targets
-npx prisma generate --generator client
+echo "Generating Prisma client for Lambda..."
+npx prisma generate --schema=./prisma/schema.prisma
 cd ..
 
 # Remove Prisma CLI which is not needed at runtime
