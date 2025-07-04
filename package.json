@@ -2,6 +2,7 @@
   "name": "numbr_billing",
   "version": "1.0.0",
   "description": "",
+  "type": "module",
   "main": "dist/app.js",
   "scripts": {
     "dev": "nodemon",
