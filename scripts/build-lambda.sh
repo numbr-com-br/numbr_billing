@@ -34,8 +34,9 @@ cd ..
 
 # Generate Prisma client with correct binary targets for Lambda
 cd lambda-dist
-# Force generation for Lambda environment
-export PRISMA_CLI_BINARY_TARGETS='["native", "rhel-openssl-3.0.x", "debian-openssl-3.0.x"]'
+# Remove any existing generated client
+rm -rf node_modules/.prisma node_modules/@prisma/client/runtime
+# Generate with all binary targets
 npx prisma generate --generator client
 cd ..
 
