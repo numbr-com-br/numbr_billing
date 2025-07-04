@@ -43,6 +43,24 @@ node node_modules/@prisma/client/scripts/postinstall.js
 mv prisma/schema.prisma.bak prisma/schema.prisma
 cd ..
 
+# Remove unnecessary Prisma binaries (keep only rhel-openssl-3.0.x for Lambda Node.js 20)
+echo "Removing unnecessary Prisma engine binaries..."
+rm -f lambda-dist/node_modules/.prisma/client/libquery_engine-darwin*
+rm -f lambda-dist/node_modules/.prisma/client/libquery_engine-debian*
+rm -f lambda-dist/node_modules/.prisma/client/libquery_engine-linux-arm*
+rm -f lambda-dist/node_modules/.prisma/client/libquery_engine-windows*
+# Keep only rhel-openssl-3.0.x
+ls -la lambda-dist/node_modules/.prisma/client/libquery_engine-* 2>/dev/null || echo "No query engine files found"
+
+# Remove Prisma CLI and other dev dependencies that might have been installed
+echo "Removing development dependencies..."
+rm -rf lambda-dist/node_modules/prisma
+rm -rf lambda-dist/node_modules/@prisma/engines
+rm -rf lambda-dist/node_modules/@prisma/engines-version
+rm -rf lambda-dist/node_modules/typescript
+rm -rf lambda-dist/node_modules/esbuild
+rm -rf lambda-dist/node_modules/@esbuild
+
 # Skip layer creation - include all dependencies in Lambda package
 echo "Skipping layer creation - all dependencies will be included in Lambda package"
 
