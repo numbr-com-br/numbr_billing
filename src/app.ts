@@ -28,14 +28,10 @@ app.use('/api/checkout', checkoutRouter)
 const setupApp = async () => {
   await connectDatabase()
 
-  // Skip AdminJS in Lambda environment for now
-  if (process.env.IS_LAMBDA === 'true') {
-    console.log('Running in Lambda mode - AdminJS disabled')
-    app.get('/health', (_req, res) => {
-      res.json({ status: 'ok', timestamp: new Date().toISOString() })
-    })
-    return
-  }
+  // Add health check endpoint
+  app.get('/health', (_req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() })
+  })
 
   // Import Prisma client to get DMMF
   const { Prisma } = await import('@prisma/client')
@@ -98,10 +94,6 @@ const setupApp = async () => {
   )
   
   app.use(admin.options.rootPath, adminRouter)
-
-  app.get('/health', (_req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() })
-  })
 }
 
 // Setup app
