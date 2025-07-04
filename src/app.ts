@@ -32,9 +32,9 @@ const setupApp = async () => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() })
   })
 
-  // Import Prisma client to get DMMF
-  const PrismaClient = await import('@prisma/client')
-  const dmmf = (PrismaClient as any).Prisma?.dmmf
+  // Import Prisma to get DMMF
+  const { Prisma } = await import('./generated/prisma/client.js')
+  const dmmf = Prisma.dmmf
   
   if (!dmmf || !dmmf.datamodel) {
     throw new Error('Unable to get DMMF from Prisma - no datamodel found')

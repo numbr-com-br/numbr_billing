@@ -1,5 +1,5 @@
 import { prisma } from '../services/prisma.service.js'
-import { SubscriptionStatus, PaymentStatus } from '@prisma/client'
+import { SubscriptionStatus, PaymentStatus } from '../generated/prisma/client.js'
 
 export const dashboardHandler = async () => {
   const [

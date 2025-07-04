@@ -24,8 +24,9 @@ cp -r dist/* lambda-dist/
 
 # No wrapper needed
 
-# Copy Prisma schema
+# Copy Prisma schema and generated client
 cp -r prisma lambda-dist/
+cp -r src/generated lambda-dist/src/
 
 # Install production dependencies in lambda-dist
 cd lambda-dist
