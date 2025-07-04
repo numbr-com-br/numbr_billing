@@ -176,20 +176,8 @@ Resources:
       Action: lambda:InvokeFunctionUrl
       FunctionUrlAuthType: NONE
 
-  # Base Path Mapping for existing Custom Domain
-  BasePathMapping:
-    Type: AWS::ApiGateway::BasePathMapping
-    Condition: HasCustomDomain
-    Properties:
-      DomainName: !If
-        - IsProd
-        - billing.numbr.com.br
-        - !If
-          - IsStaging
-          - billing-staging.numbr.com.br
-          - billing-dev.numbr.com.br
-      RestApiId: !Ref Api
-      Stage: !Ref Environment
+  # Note: BasePathMapping is managed outside CloudFormation
+  # since custom domains were created manually
 
 Outputs:
   ApiUrl:
