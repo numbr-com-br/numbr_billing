@@ -129,7 +129,7 @@ jobs:
           --parameter-overrides \
             Environment=${{ steps.set-env.outputs.env_name }} \
             DatabaseUrl="${{ vars.DATABASE_URL }}" \
-            AsaasApiKey="${{ vars.ASAAS_API_KEY }}" \
+            AsaasApiKey="${{ secrets.ASAAS_API_KEY || vars.ASAAS_API_KEY }}" \
             AsaasWebhookToken="${{ vars.ASAAS_WEBHOOK_TOKEN }}" \
             AdminEmail="${{ vars.ADMIN_EMAIL }}" \
             AdminPassword="${{ vars.ADMIN_PASSWORD }}" \
