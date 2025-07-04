@@ -37,11 +37,12 @@ const setupApp = async () => {
     return
   }
 
-  // Get DMMF from Prisma internals
-  const dmmf = ((prisma as any)._dmmf || (prisma as any)._engine?.datamodel) as DMMF.Document
+  // Import Prisma client to get DMMF
+  const { Prisma } = await import('@prisma/client')
+  const dmmf = Prisma.dmmf
   
-  if (!dmmf) {
-    throw new Error('Unable to get DMMF from Prisma')
+  if (!dmmf || !dmmf.datamodel) {
+    throw new Error('Unable to get DMMF from Prisma - no datamodel found')
   }
 
   const admin = new AdminJS({
