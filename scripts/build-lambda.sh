@@ -69,14 +69,6 @@ find lambda-dist -name "example" -type d -exec rm -rf {} + 2>/dev/null || true
 find lambda-dist -name "examples" -type d -exec rm -rf {} + 2>/dev/null || true
 rm -rf lambda-dist/node_modules/*/node_modules/.bin 2>/dev/null || true
 
-# Remove AdminJS design system assets (not needed for API)
-rm -rf lambda-dist/node_modules/@adminjs/design-system/build 2>/dev/null || true
-rm -rf lambda-dist/node_modules/@adminjs/design-system/src 2>/dev/null || true
-rm -rf lambda-dist/node_modules/@adminjs/design-system/bundle* 2>/dev/null || true
-
-# Remove source files from production
-find lambda-dist -name "src" -type d -not -path "*/dist/*" -not -path "*/.localfiles/*" -exec rm -rf {} + 2>/dev/null || true
-
 # Create Lambda deployment package
 cd lambda-dist
 zip -r ../lambda-package.zip . -q

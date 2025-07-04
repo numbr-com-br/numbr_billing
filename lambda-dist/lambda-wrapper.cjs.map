@@ -1,0 +1,1 @@
+{"version":3,"file":"lambda-wrapper.cjs","sourceRoot":"","sources":["../src/lambda-wrapper.cjs"],"names":[],"mappings":";AAAA,gDAAgD;AAChD,OAAO,CAAC,OAAO,GAAG,KAAK,EAAE,KAAK,EAAE,OAAO,EAAE,EAAE;IACzC,MAAM,EAAE,OAAO,EAAE,GAAG,MAAM,MAAM,CAAC,aAAa,CAAC,CAAC;IAChD,OAAO,OAAO,CAAC,KAAK,EAAE,OAAO,CAAC,CAAC;AACjC,CAAC,CAAC"}

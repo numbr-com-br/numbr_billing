@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+  moduleFormat = "ESM"
+  binaryTargets = ["native", "rhel-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum BillingCycle {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  QUARTERLY
+  SEMIANNUALLY
+  YEARLY
+}
+
+enum AddonType {
+  RECURRING
+  ONE_TIME
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+  CANCELED
+  EXPIRED
+}
+
+enum PaymentStatus {
+  PENDING
+  CONFIRMED
+  RECEIVED
+  OVERDUE
+  REFUNDED
+  FAILED
+}
+
+model Plan {
+  id            String         @id @default(cuid())
+  name          String
+  description   String?
+  price         Decimal        @db.Decimal(10, 2)
+  cycle         BillingCycle
+  features      Json           @default("[]")
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model Addon {
+  id                 String                @id @default(cuid())
+  name               String
+  description        String?
+  price              Decimal               @db.Decimal(10, 2)
+  type               AddonType
+  isActive           Boolean               @default(true)
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  subscriptionAddons SubscriptionAddon[]
+
+  @@map("addons")
+}
+
+model Customer {
+  id              String         @id @default(cuid())
+  email           String         @unique
+  name            String
+  phone           String?
+  cpfCnpj         String?
+  asaasCustomerId String?        @unique
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  subscriptions   Subscription[]
+
+  @@map("customers")
+}
+
+model Subscription {
+  id                  String              @id @default(cuid())
+  customer            Customer            @relation(fields: [customerId], references: [id])
+  customerId          String
+  plan                Plan                @relation(fields: [planId], references: [id])
+  planId              String
+  asaasSubscriptionId String?             @unique
+  status              SubscriptionStatus  @default(PENDING)
+  startDate           DateTime            @default(now())
+  nextDueDate         DateTime?
+  canceledAt          DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  payments            Payment[]
+  addons              SubscriptionAddon[]
+
+  @@map("subscriptions")
+}
+
+model SubscriptionAddon {
+  id             String       @id @default(cuid())
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+  subscriptionId String
+  addon          Addon        @relation(fields: [addonId], references: [id])
+  addonId        String
+  quantity       Int          @default(1)
+  createdAt      DateTime     @default(now())
+
+  @@unique([subscriptionId, addonId])
+  @@map("subscription_addons")
+}
+
+model Payment {
+  id                 String        @id @default(cuid())
+  subscription       Subscription  @relation(fields: [subscriptionId], references: [id])
+  subscriptionId     String
+  amount             Decimal       @db.Decimal(10, 2)
+  status             PaymentStatus @default(PENDING)
+  asaasPaymentId     String?       @unique
+  dueDate            DateTime
+  paidAt             DateTime?
+  paymentLink        String?
+  billingType        String?
+  invoiceNumber      String?
+  externalReference  String?
+  description        String?
+  transactionReceipt String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@map("payments")
+}
+
+model WebhookLog {
+  id          String   @id @default(cuid())
+  event       String
+  payload     Json
+  processedAt DateTime @default(now())
+  success     Boolean  @default(true)
+  error       String?
+
+  @@map("webhook_logs")
+}

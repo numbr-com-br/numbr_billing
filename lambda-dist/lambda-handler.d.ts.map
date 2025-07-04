@@ -1,0 +1,1 @@
+{"version":3,"file":"lambda-handler.d.ts","sourceRoot":"","sources":["../src/lambda-handler.ts"],"names":[],"mappings":"AACA,OAAO,KAAK,EAAE,OAAO,EAAE,oBAAoB,EAAE,qBAAqB,EAAE,MAAM,YAAY,CAAA;AAKtF,eAAO,MAAM,OAAO,GAClB,OAAO,oBAAoB,EAC3B,SAAS,OAAO,KACf,OAAO,CAAC,qBAAqB,CAM/B,CAAA"}
