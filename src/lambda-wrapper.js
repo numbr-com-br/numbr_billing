@@ -1,16 +1,16 @@
-const { configure } = require('serverless-express');
+const serverlessExpress = require('@codegenie/serverless-express');
 
-let serverlessExpress;
+let cachedServer;
 
-async function getServerlessExpress() {
-  if (!serverlessExpress) {
-    const module = await import('./app.js');
-    serverlessExpress = configure({ app: module.app });
+async function bootstrapServer() {
+  if (!cachedServer) {
+    const { app } = await import('./app.js');
+    cachedServer = serverlessExpress({ app });
   }
-  return serverlessExpress;
+  return cachedServer;
 }
 
 module.exports.handler = async (event, context) => {
-  const serverlessExpress = await getServerlessExpress();
-  return serverlessExpress(event, context);
+  const server = await bootstrapServer();
+  return server(event, context);
 };

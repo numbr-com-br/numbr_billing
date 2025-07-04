@@ -1,4 +1,4 @@
-const { configure } = require('serverless-express')
+import serverlessExpress from '@codegenie/serverless-express'
 import { app } from './app'
 
-export const handler = configure({ app })
+export const handler = serverlessExpress({ app })
