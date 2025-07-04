@@ -22,14 +22,13 @@ cp package-lock.json lambda-dist/
 
 # No wrapper needed
 
-# Copy package.json as-is to keep type: module
-cd lambda-dist
-
 # Copy Prisma schema
 cp -r prisma lambda-dist/
 
-# Install production dependencies in lambda-dist
+# Change to lambda-dist directory
 cd lambda-dist
+
+# Install production dependencies
 npm ci --omit=dev --no-fund --no-audit
 cd ..
 
