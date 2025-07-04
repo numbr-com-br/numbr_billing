@@ -20,8 +20,7 @@ cp -r dist lambda-dist/
 cp package.json lambda-dist/
 cp package-lock.json lambda-dist/
 
-# Copy lambda wrapper
-cp src/lambda-wrapper.js lambda-dist/dist/
+# No wrapper needed
 
 # Create a package.json that supports mixed modules for Lambda
 cd lambda-dist

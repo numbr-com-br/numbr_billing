@@ -88,7 +88,7 @@ Resources:
       CodeUri:
         Bucket: !Ref LambdaS3Bucket
         Key: !Ref LambdaS3Key
-      Handler: dist/lambda-wrapper.handler
+      Handler: dist/lambda.handler
       Environment:
         Variables:
           DATABASE_URL: !Ref DatabaseUrl
