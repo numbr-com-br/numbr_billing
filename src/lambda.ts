@@ -1,4 +1,4 @@
-import serverless from 'serverless-http'
+const { configure } = require('serverless-express')
 import { app } from './app'
 
-export const handler = serverless(app)
+export const handler = configure({ app })

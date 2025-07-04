@@ -66,7 +66,7 @@ LAYER_DEPS=(
   "adminjs"
   "express"
   "express-session"
-  "@vendia/serverless-express"
+  "serverless-express"
   "axios"
   "@prisma/client"
   "@prisma/engines"
