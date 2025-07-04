@@ -97,12 +97,15 @@ const setupApp = async () => {
 }
 
 // Setup app
-setupApp().catch((error) => {
+const appSetupPromise = setupApp().catch((error) => {
   console.error('Failed to setup app:', error)
   if (!process.env.IS_LAMBDA) {
     process.exit(1)
   }
 })
+
+// Export the setup promise so Lambda can wait for it
+export { appSetupPromise }
 
 // Only start server if not running in Lambda
 if (!process.env.IS_LAMBDA) {

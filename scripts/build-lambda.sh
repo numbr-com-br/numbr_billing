@@ -22,22 +22,8 @@ cp package-lock.json lambda-dist/
 
 # No wrapper needed
 
-# Create a package.json that supports mixed modules for Lambda
+# Copy package.json as-is to keep type: module
 cd lambda-dist
-node -e "
-const p = require('./package.json');
-// Remove type: module to allow mixed CommonJS/ES modules
-delete p.type;
-// Add exports configuration
-p.exports = {
-  '.': {
-    'import': './dist/app.js',
-    'require': './dist/app.js'
-  }
-};
-require('fs').writeFileSync('./package.json', JSON.stringify(p, null, 2));
-"
-cd ..
 
 # Copy Prisma schema
 cp -r prisma lambda-dist/
