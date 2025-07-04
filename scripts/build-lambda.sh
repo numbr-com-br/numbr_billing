@@ -24,9 +24,8 @@ cp -r dist/* lambda-dist/
 
 # No wrapper needed
 
-# Copy Prisma schema and generated client
+# Copy Prisma schema
 cp -r prisma lambda-dist/
-cp -r src/generated lambda-dist/src/
 
 # Install production dependencies in lambda-dist
 cd lambda-dist
@@ -34,12 +33,24 @@ npm ci --omit=dev --no-fund --no-audit
 
 # Generate Prisma client with correct binary targets for Lambda
 echo "Generating Prisma client for Lambda..."
-npx prisma generate --schema=./prisma/schema.prisma
+# First, temporarily modify the schema to use the old generator for Lambda
+sed -i.bak 's/provider = "prisma-client"/provider = "prisma-client-js"/' prisma/schema.prisma
+sed -i.bak '/output/d' prisma/schema.prisma
+sed -i.bak '/moduleFormat/d' prisma/schema.prisma
+# Use node directly to avoid npx installing prisma
+node node_modules/@prisma/client/scripts/postinstall.js
+# Restore original schema
+mv prisma/schema.prisma.bak prisma/schema.prisma
 cd ..
 
-# Remove Prisma CLI which is not needed at runtime
+# Remove Prisma CLI and unnecessary binaries
 rm -rf lambda-dist/node_modules/prisma
 rm -rf lambda-dist/node_modules/.bin/prisma
+rm -rf lambda-dist/node_modules/@prisma/engines
+rm -rf lambda-dist/node_modules/@prisma/engines-version
+# Keep only the Linux binary for Lambda
+find lambda-dist/node_modules/.prisma/client -name "*.node" ! -name "*rhel-openssl-3.0.x*" -delete 2>/dev/null || true
+find lambda-dist/node_modules/@prisma/client/runtime -name "*.node" ! -name "*rhel-openssl-3.0.x*" -delete 2>/dev/null || true
 
 # Skip layer creation - include all dependencies in Lambda package
 echo "Skipping layer creation - all dependencies will be included in Lambda package"
@@ -57,6 +68,14 @@ find lambda-dist -name "docs" -type d -exec rm -rf {} + 2>/dev/null || true
 find lambda-dist -name "example" -type d -exec rm -rf {} + 2>/dev/null || true
 find lambda-dist -name "examples" -type d -exec rm -rf {} + 2>/dev/null || true
 rm -rf lambda-dist/node_modules/*/node_modules/.bin 2>/dev/null || true
+
+# Remove AdminJS design system assets (not needed for API)
+rm -rf lambda-dist/node_modules/@adminjs/design-system/build 2>/dev/null || true
+rm -rf lambda-dist/node_modules/@adminjs/design-system/src 2>/dev/null || true
+rm -rf lambda-dist/node_modules/@adminjs/design-system/bundle* 2>/dev/null || true
+
+# Remove source files from production
+find lambda-dist -name "src" -type d -not -path "*/dist/*" -not -path "*/.localfiles/*" -exec rm -rf {} + 2>/dev/null || true
 
 # Create Lambda deployment package
 cd lambda-dist
