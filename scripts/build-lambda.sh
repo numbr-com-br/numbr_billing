@@ -57,43 +57,8 @@ cd ..
 rm -rf lambda-dist/node_modules/prisma
 rm -rf lambda-dist/node_modules/.bin/prisma
 
-# Create layer with heavy dependencies
-echo "Creating Lambda layer..."
-LAYER_DEPS=(
-  "@adminjs/design-system"
-  "@adminjs/express" 
-  "@adminjs/prisma"
-  "adminjs"
-  "express"
-  "express-session"
-  "serverless-express"
-  "body-parser"
-  "axios"
-  "@prisma/client"
-  "@prisma/engines"
-  ".prisma"
-)
-
-# Move layer dependencies
-for dep in "${LAYER_DEPS[@]}"; do
-  if [ -d "lambda-dist/node_modules/$dep" ]; then
-    parent_dir=$(dirname "$dep")
-    if [ "$parent_dir" != "." ]; then
-      mkdir -p "layer/nodejs/node_modules/$parent_dir"
-    fi
-    mv "lambda-dist/node_modules/$dep" "layer/nodejs/node_modules/$dep"
-  fi
-done
-
-# Create layer package
-if [ -d "layer/nodejs/node_modules" ] && [ "$(ls -A layer/nodejs/node_modules)" ]; then
-  cd layer
-  zip -r ../layer-package.zip . -q
-  cd ..
-  echo "Layer package created"
-else
-  echo "No dependencies for layer, skipping layer creation"
-fi
+# Skip layer creation - include all dependencies in Lambda package
+echo "Skipping layer creation - all dependencies will be included in Lambda package"
 
 # Remove unnecessary files
 find lambda-dist -name "*.md" -delete 2>/dev/null || true

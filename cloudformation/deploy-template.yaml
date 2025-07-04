@@ -80,19 +80,6 @@ Resources:
       BinaryMediaTypes:
         - '*/*'
 
-  # Lambda Layer for Dependencies (only if layer exists)
-  DependenciesLayer:
-    Type: AWS::Serverless::LayerVersion
-    Condition: HasLayer
-    Properties:
-      LayerName: !Sub numbr-billing-${Environment}-deps
-      ContentUri: 
-        Bucket: !Ref LambdaS3Bucket
-        Key: !Ref LayerS3Key
-      CompatibleRuntimes:
-        - nodejs20.x
-      RetentionPolicy: Delete
-
   # Lambda Function
   BillingFunction:
     Type: AWS::Serverless::Function
@@ -102,11 +89,6 @@ Resources:
         Bucket: !Ref LambdaS3Bucket
         Key: !Ref LambdaS3Key
       Handler: dist/lambda-wrapper.handler
-      Layers:
-        - !If 
-          - HasLayer
-          - !Ref DependenciesLayer
-          - !Ref AWS::NoValue
       Environment:
         Variables:
           DATABASE_URL: !Ref DatabaseUrl
