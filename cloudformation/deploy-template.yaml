@@ -59,8 +59,12 @@ Globals:
 Conditions:
   IsProd: !Equals [!Ref Environment, prod]
   IsStaging: !Equals [!Ref Environment, stg]
+  IsDev: !Equals [!Ref Environment, dev]
   HasLayer: !Not [!Equals [!Ref LayerS3Key, ""]]
-  HasCustomDomain: true
+  HasCustomDomain: !Or
+    - !Equals [!Ref Environment, prod]
+    - !Equals [!Ref Environment, stg]
+    - !Equals [!Ref Environment, dev]
 
 Resources:
   # API Gateway
