@@ -67,6 +67,7 @@ LAYER_DEPS=(
   "express"
   "express-session"
   "serverless-express"
+  "body-parser"
   "axios"
   "@prisma/client"
   "@prisma/engines"
