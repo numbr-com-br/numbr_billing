@@ -43,31 +43,8 @@ node node_modules/@prisma/client/scripts/postinstall.js
 mv prisma/schema.prisma.bak prisma/schema.prisma
 cd ..
 
-# Remove Prisma CLI and unnecessary binaries
-rm -rf lambda-dist/node_modules/prisma
-rm -rf lambda-dist/node_modules/.bin/prisma
-rm -rf lambda-dist/node_modules/@prisma/engines
-rm -rf lambda-dist/node_modules/@prisma/engines-version
-# Keep only the Linux binary for Lambda
-find lambda-dist/node_modules/.prisma/client -name "*.node" ! -name "*rhel-openssl-3.0.x*" -delete 2>/dev/null || true
-find lambda-dist/node_modules/@prisma/client/runtime -name "*.node" ! -name "*rhel-openssl-3.0.x*" -delete 2>/dev/null || true
-
 # Skip layer creation - include all dependencies in Lambda package
 echo "Skipping layer creation - all dependencies will be included in Lambda package"
-
-# Remove unnecessary files
-find lambda-dist -name "*.md" -delete 2>/dev/null || true
-find lambda-dist -name "*.map" -delete 2>/dev/null || true
-find lambda-dist -name "*.ts" -not -path "*/node_modules/*" -delete 2>/dev/null || true
-find lambda-dist -name "test" -type d -exec rm -rf {} + 2>/dev/null || true
-find lambda-dist -name "tests" -type d -exec rm -rf {} + 2>/dev/null || true
-find lambda-dist -name ".git" -type d -exec rm -rf {} + 2>/dev/null || true
-find lambda-dist -name "*.d.ts" -not -path "*/node_modules/@types/*" -not -path "*/@prisma/*" -delete 2>/dev/null || true
-find lambda-dist -name "*.flow" -delete 2>/dev/null || true
-find lambda-dist -name "docs" -type d -exec rm -rf {} + 2>/dev/null || true
-find lambda-dist -name "example" -type d -exec rm -rf {} + 2>/dev/null || true
-find lambda-dist -name "examples" -type d -exec rm -rf {} + 2>/dev/null || true
-rm -rf lambda-dist/node_modules/*/node_modules/.bin 2>/dev/null || true
 
 # Create Lambda deployment package
 cd lambda-dist
