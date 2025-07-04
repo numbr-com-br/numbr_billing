@@ -4,7 +4,6 @@ import AdminJSExpress from '@adminjs/express'
 import session from 'express-session'
 // @ts-ignore
 import { Database, Resource } from '@adminjs/prisma'
-import { DMMF } from '@prisma/client/runtime/library'
 
 import { config, validateEnv } from './config/env'
 import { prisma, connectDatabase } from './services/prisma.service'
@@ -34,8 +33,8 @@ const setupApp = async () => {
   })
 
   // Import Prisma client to get DMMF
-  const { Prisma } = await import('@prisma/client')
-  const dmmf = Prisma.dmmf
+  const PrismaClient = await import('@prisma/client')
+  const dmmf = (PrismaClient as any).Prisma?.dmmf
   
   if (!dmmf || !dmmf.datamodel) {
     throw new Error('Unable to get DMMF from Prisma - no datamodel found')
