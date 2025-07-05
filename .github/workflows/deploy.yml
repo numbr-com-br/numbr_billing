@@ -116,9 +116,13 @@ jobs:
       continue-on-error: true
 
     - name: Deploy Application
-      run: serverless deploy --stage ${{ steps.set-env.outputs.stage }} --verbose
+      run: |
+        # Fix DATABASE_URL format for Python SQLAlchemy
+        FIXED_DB_URL=$(echo "${{ vars.DATABASE_URL }}" | sed 's|mysql://|mysql+pymysql://|')
+        export DATABASE_URL="$FIXED_DB_URL"
+        
+        serverless deploy --stage ${{ steps.set-env.outputs.stage }} --verbose
       env:
-        DATABASE_URL: ${{ vars.DATABASE_URL }}
         ASAAS_API_KEY: ${{ secrets.ASAAS_API_KEY || vars.ASAAS_API_KEY }}
         ASAAS_WEBHOOK_TOKEN: ${{ vars.ASAAS_WEBHOOK_TOKEN }}
         ADMIN_EMAIL: ${{ vars.ADMIN_EMAIL }}

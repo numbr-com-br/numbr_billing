@@ -173,6 +173,22 @@ When deploying from macOS, Docker permission issues may prevent proper compilati
 2. Enable dockerizePip in serverless.yml only in CI/CD environment
 3. Manual deployment script available in project history if needed
 
+#### Database URL Format
+The GitHub repository variables store DATABASE_URL with `mysql://` protocol, but Python SQLAlchemy requires `mysql+pymysql://`. The GitHub Actions workflow automatically converts the format during deployment.
+
+#### AWS Profile
+- Local deployment uses `--aws-profile numbr`
+- GitHub Actions uses AWS credentials configured as secrets
+- The serverless.yml has `profile: ${opt:aws-profile, ''}` to support both scenarios
+
+#### Custom Domains
+The following custom domains are configured and working:
+- **Development**: https://billing-dev.numbr.com.br
+- **Staging**: https://billing-staging.numbr.com.br  
+- **Production**: https://billing.numbr.com.br
+
+Domain creation is handled automatically by the deployment process using serverless-domain-manager plugin.
+
 ## API Endpoints
 
 ### Health Check
