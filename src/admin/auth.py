@@ -75,8 +75,12 @@ async def authenticate_user(
     password: str
 ) -> Optional[AdminUser]:
     """Authenticate user with email and password"""
+    from sqlalchemy.orm import selectinload
+    
     result = await db.execute(
-        select(AdminUser).where(AdminUser.email == email)
+        select(AdminUser)
+        .where(AdminUser.email == email)
+        .options(selectinload(AdminUser.roles))
     )
     user = result.scalar_one_or_none()
     
@@ -125,9 +129,13 @@ async def get_current_user(
     if session_result.scalar_one_or_none():
         raise credentials_exception
     
-    # Get user
+    # Get user with roles
+    from sqlalchemy.orm import selectinload
+    
     result = await db.execute(
-        select(AdminUser).where(AdminUser.id == user_id)
+        select(AdminUser)
+        .where(AdminUser.id == user_id)
+        .options(selectinload(AdminUser.roles))
     )
     user = result.scalar_one_or_none()
     
