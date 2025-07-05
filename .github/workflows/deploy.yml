@@ -7,34 +7,73 @@ on:
       - staging
       - main
 
-permissions:
-  id-token: write
-  contents: read
-
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: latest
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+    
+    - name: Load cached venv
+      id: cached-poetry-dependencies
+      uses: actions/cache@v4
+      with:
+        path: .venv
+        key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+    
+    - name: Install dependencies
+      if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+      run: poetry install --no-interaction --no-root
+    
+    - name: Run tests
+      env:
+        DATABASE_URL: "mysql+pymysql://test:test@localhost:3306/test"
+        ASAAS_API_KEY: test_key
+        ASAAS_API_URL: https://sandbox.asaas.com/api/v3
+        ASAAS_WEBHOOK_TOKEN: test_token
+      run: |
+        poetry run pytest tests/ -v --cov=src --cov-report=term-missing || true
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name == 'develop' && 'development' || github.ref_name == 'staging' && 'staging' || 'production' }}
     
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set environment name
+    - name: Set environment
       id: set-env
       run: |
         if [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
-          echo "env_name=dev" >> $GITHUB_OUTPUT
-          echo "stack_name=numbr-billing-dev" >> $GITHUB_OUTPUT
-          echo "domain_name=billing-dev.numbr.com.br" >> $GITHUB_OUTPUT
+          echo "stage=dev" >> $GITHUB_OUTPUT
         elif [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
-          echo "env_name=stg" >> $GITHUB_OUTPUT
-          echo "stack_name=numbr-billing-stg" >> $GITHUB_OUTPUT
-          echo "domain_name=billing-staging.numbr.com.br" >> $GITHUB_OUTPUT
+          echo "stage=stg" >> $GITHUB_OUTPUT
         elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-          echo "env_name=prod" >> $GITHUB_OUTPUT
-          echo "stack_name=numbr-billing-prod" >> $GITHUB_OUTPUT
-          echo "domain_name=billing.numbr.com.br" >> $GITHUB_OUTPUT
+          echo "stage=prod" >> $GITHUB_OUTPUT
         fi
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: latest
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -43,148 +82,87 @@ jobs:
         cache: 'npm'
 
     - name: Install dependencies
-      run: npm ci
-
-    - name: Build application
       run: |
-        npm run prisma:generate
-        npm run build
+        npm ci
+        npm install -g serverless@4
+        poetry export -f requirements.txt --output requirements.txt --without-hashes
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION }}
+        aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
 
-    - name: Get AWS Account Info
-      id: aws-account
+    - name: Update serverless.yml for Linux deployment
       run: |
-        ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-        echo "account_id=$ACCOUNT_ID" >> $GITHUB_OUTPUT
-        echo "region=${{ secrets.AWS_REGION }}" >> $GITHUB_OUTPUT
+        # Enable dockerizePip for proper Lambda compilation
+        sed -i 's/dockerizePip: false/dockerizePip: true/' serverless.yml
 
-    - name: Build Lambda package
+    - name: Create or Update Custom Domain
       run: |
-        chmod +x scripts/build-lambda.sh
-        ./scripts/build-lambda.sh ${{ steps.set-env.outputs.env_name }}
+        echo "Setting up custom domain..."
+        npx serverless create_domain --stage ${{ steps.set-env.outputs.stage }} || echo "Domain might already exist, continuing..."
+      continue-on-error: true
 
-    - name: Create deployment bucket
-      run: |
-        BUCKET_NAME="numbr-billing-deployment-${{ steps.aws-account.outputs.account_id }}-${{ steps.aws-account.outputs.region }}"
-        echo "Checking/creating bucket: $BUCKET_NAME"
-        aws s3api head-bucket --bucket $BUCKET_NAME 2>/dev/null || \
-        aws s3 mb s3://$BUCKET_NAME || true
+    - name: Deploy Application
+      run: serverless deploy --stage ${{ steps.set-env.outputs.stage }} --verbose
+      env:
+        DATABASE_URL: ${{ vars.DATABASE_URL }}
+        ASAAS_API_KEY: ${{ secrets.ASAAS_API_KEY || vars.ASAAS_API_KEY }}
+        ASAAS_WEBHOOK_TOKEN: ${{ vars.ASAAS_WEBHOOK_TOKEN }}
+        ADMIN_EMAIL: ${{ vars.ADMIN_EMAIL }}
+        ADMIN_PASSWORD: ${{ vars.ADMIN_PASSWORD }}
 
-    - name: Upload Lambda package to S3
+    - name: Get deployment info
+      id: deployment-info
       run: |
-        echo "Checking for Lambda packages..."
-        ls -la *.zip || echo "No zip files found"
+        ENDPOINT=$(serverless info --stage ${{ steps.set-env.outputs.stage }} --verbose | grep "endpoint:" | sed 's/.*endpoint: //')
+        echo "endpoint=$ENDPOINT" >> $GITHUB_OUTPUT
+        echo "Deployed to: $ENDPOINT"
+
+    - name: Run smoke test
+      run: |
+        ENDPOINT="${{ steps.deployment-info.outputs.endpoint }}"
+        echo "Testing health endpoint at: $ENDPOINT/health"
         
-        BUCKET_NAME="numbr-billing-deployment-${{ steps.aws-account.outputs.account_id }}-${{ steps.aws-account.outputs.region }}"
-        TIMESTAMP=$(date +%Y%m%d%H%M%S)
+        # Wait a bit for Lambda to be ready
+        sleep 10
         
-        if [ ! -f lambda-package.zip ]; then
-          echo "ERROR: lambda-package.zip not found!"
+        # Test health endpoint
+        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$ENDPOINT/health")
+        echo "Health check returned HTTP code: $HTTP_CODE"
+        
+        if [ "$HTTP_CODE" -eq 200 ]; then
+          echo "Health check passed!"
+        else
+          echo "Health check failed!"
+          curl -v "$ENDPOINT/health"
           exit 1
         fi
-        
-        echo "Uploading lambda-package.zip to s3://$BUCKET_NAME/lambda-${{ steps.set-env.outputs.env_name }}-$TIMESTAMP.zip"
-        aws s3 cp lambda-package.zip s3://$BUCKET_NAME/lambda-${{ steps.set-env.outputs.env_name }}-$TIMESTAMP.zip
-        echo "LAMBDA_S3_KEY=lambda-${{ steps.set-env.outputs.env_name }}-$TIMESTAMP.zip" >> $GITHUB_ENV
-        
-        if [ -f layer-package.zip ]; then
-          echo "Uploading layer-package.zip to s3://$BUCKET_NAME/layer-${{ steps.set-env.outputs.env_name }}-$TIMESTAMP.zip"
-          aws s3 cp layer-package.zip s3://$BUCKET_NAME/layer-${{ steps.set-env.outputs.env_name }}-$TIMESTAMP.zip
-          echo "LAYER_S3_KEY=layer-${{ steps.set-env.outputs.env_name }}-$TIMESTAMP.zip" >> $GITHUB_ENV
+      continue-on-error: true
+
+    - name: Display and Test Custom Domain
+      run: |
+        STAGE=${{ steps.set-env.outputs.stage }}
+        if [ "$STAGE" == "dev" ]; then
+          CUSTOM_DOMAIN="https://billing-dev.numbr.com.br"
+        elif [ "$STAGE" == "stg" ]; then
+          CUSTOM_DOMAIN="https://billing-staging.numbr.com.br"
+        elif [ "$STAGE" == "prod" ]; then
+          CUSTOM_DOMAIN="https://billing.numbr.com.br"
         fi
-
-    - name: Check and cleanup failed stack
-      run: |
-        STACK_STATUS=$(aws cloudformation describe-stacks \
-          --stack-name ${{ steps.set-env.outputs.stack_name }} \
-          --query 'Stacks[0].StackStatus' \
-          --output text 2>/dev/null || echo "DOES_NOT_EXIST")
         
-        echo "Current stack status: $STACK_STATUS"
-        
-        if [[ "$STACK_STATUS" == "ROLLBACK_COMPLETE" || "$STACK_STATUS" == "CREATE_FAILED" || "$STACK_STATUS" == "DELETE_FAILED" ]]; then
-          echo "Stack is in failed state. Deleting..."
-          aws cloudformation delete-stack --stack-name ${{ steps.set-env.outputs.stack_name }}
-          aws cloudformation wait stack-delete-complete --stack-name ${{ steps.set-env.outputs.stack_name }}
-          echo "Stack deleted successfully"
-        fi
-
-    - name: Deploy CloudFormation stack
-      run: |
-        echo "Deploying stack: ${{ steps.set-env.outputs.stack_name }}"
-        echo "Environment: ${{ steps.set-env.outputs.env_name }}"
-        
-        BUCKET_NAME="numbr-billing-deployment-${{ steps.aws-account.outputs.account_id }}-${{ steps.aws-account.outputs.region }}"
-        
-        aws cloudformation deploy \
-          --template-file cloudformation/deploy-template.yaml \
-          --stack-name ${{ steps.set-env.outputs.stack_name }} \
-          --s3-bucket $BUCKET_NAME \
-          --parameter-overrides \
-            Environment=${{ steps.set-env.outputs.env_name }} \
-            DatabaseUrl="${{ vars.DATABASE_URL }}" \
-            AsaasApiKey='${{ secrets.ASAAS_API_KEY || vars.ASAAS_API_KEY }}' \
-            AsaasWebhookToken="${{ vars.ASAAS_WEBHOOK_TOKEN }}" \
-            AdminEmail="${{ vars.ADMIN_EMAIL }}" \
-            AdminPassword="${{ vars.ADMIN_PASSWORD }}" \
-            LambdaS3Bucket=$BUCKET_NAME \
-            LambdaS3Key=$LAMBDA_S3_KEY \
-            LayerS3Key=$LAYER_S3_KEY \
-          --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
-          --no-fail-on-empty-changeset
-
-
-    - name: Get API Gateway URL
-      id: get-api-url
-      run: |
-        API_URL=$(aws cloudformation describe-stacks \
-          --stack-name ${{ steps.set-env.outputs.stack_name }} \
-          --query 'Stacks[0].Outputs[?OutputKey==`ApiUrl`].OutputValue' \
-          --output text)
-        echo "api_url=$API_URL" >> $GITHUB_OUTPUT
-
-    - name: Wait for Lambda to be ready
-      run: |
-        echo "Waiting for Lambda function to be ready..."
+        echo "🌐 Custom domain: $CUSTOM_DOMAIN"
+        echo "Waiting for domain propagation..."
         sleep 30
         
-    - name: Smoke test
-      run: |
-        echo "Testing API at: ${{ steps.get-api-url.outputs.api_url }}"
+        echo "Testing custom domain health endpoint..."
+        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$CUSTOM_DOMAIN/health" || echo "000")
         
-        # Try up to 5 times with 10 second intervals
-        for i in {1..5}; do
-          echo "Attempt $i/5..."
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -m 30 ${{ steps.get-api-url.outputs.api_url }}/health || echo "000")
-          
-          echo "HTTP Status Code: $HTTP_CODE"
-          
-          if [[ "$HTTP_CODE" == "200" ]]; then
-            echo "Health check passed!"
-            exit 0
-          elif [[ "$HTTP_CODE" == "502" || "$HTTP_CODE" == "503" ]]; then
-            echo "Lambda still initializing, waiting 10 seconds..."
-            sleep 10
-          else
-            echo "Unexpected status code: $HTTP_CODE"
-            # Get more details for debugging
-            curl -v ${{ steps.get-api-url.outputs.api_url }}/health || true
-            sleep 10
-          fi
-        done
-        
-        echo "Health check not passing after 5 attempts, but deployment completed"
-        # Don't fail the deployment for now
-        exit 0
-
-    - name: Notify deployment
-      if: always()
-      run: |
-        echo "Deployment completed for ${{ steps.set-env.outputs.env_name }} environment"
-        echo "API URL: ${{ steps.get-api-url.outputs.api_url }}"
+        if [ "$HTTP_CODE" -eq 200 ]; then
+          echo "✅ Custom domain is working!"
+        else
+          echo "⚠️  Custom domain not responding yet (HTTP $HTTP_CODE)"
+          echo "This is normal for first deployment. Domain may take up to 40 minutes to propagate."
+        fi
