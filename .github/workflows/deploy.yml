@@ -94,7 +94,7 @@ jobs:
     - name: Install dependencies
       run: |
         npm ci
-        npm install -g serverless@4
+        npm install -g serverless@3
         poetry export -f requirements.txt --output requirements.txt --without-hashes
 
     - name: Configure AWS credentials
