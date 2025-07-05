@@ -1,187 +1,106 @@
-# Numbr Billing - Sistema de Billing SaaS
+# Numbr Billing
 
-Sistema de billing completo para SaaS com integração Asaas, painel administrativo e checkout transparente.
+Sistema de cobrança SaaS com integração Asaas, desenvolvido em Python com FastAPI.
 
-## Recursos
+## Stack Tecnológica
 
-- ✅ Gestão de planos e módulos extras (add-ons)
-- ✅ Integração completa com Asaas (assinaturas e pagamentos)
-- ✅ Painel administrativo com AdminJS
-- ✅ Dashboard com métricas (MRR, assinaturas ativas, etc)
-- ✅ Webhook para notificações de pagamento
-- ✅ API de checkout público
-- ✅ Autenticação no painel admin
-- ✅ Testes unitários e de integração
-
-## Tecnologias
-
-- Node.js + TypeScript
-- Express.js
-- Prisma ORM (MySQL)
-- AdminJS
-- Asaas API
-- Jest + Supertest (Testes)
+- **FastAPI**: Framework web moderno e rápido
+- **SQLAlchemy 2.0**: ORM com suporte async
+- **Alembic**: Migrations de banco de dados
+- **Pydantic**: Validação de dados
+- **httpx**: Cliente HTTP async
+- **AWS Lambda**: Deploy serverless com Mangum
 
 ## Instalação
 
-1. Clone o repositório
-2. Instale as dependências:
 ```bash
-npm install
-```
+# Instalar Poetry
+curl -sSL https://install.python-poetry.org | python3 -
 
-3. Configure o banco de dados MySQL
+# Instalar dependências
+poetry install
 
-4. Copie o arquivo `.env.example` para `.env` e configure:
-```bash
+# Copiar arquivo de ambiente
 cp .env.example .env
+# Editar .env com suas configurações
 ```
 
-5. Configure as variáveis de ambiente:
-- `DATABASE_URL`: URL de conexão do MySQL (ex: mysql://root:password@localhost:3306/numbr_billing)
-- `ASAAS_API_KEY`: Chave da API do Asaas
-- `ASAAS_API_URL`: URL da API do Asaas (sandbox ou produção)
-- `ASAAS_WEBHOOK_TOKEN`: Token para validar webhooks
-- `ADMIN_EMAIL` e `ADMIN_PASSWORD`: Credenciais do admin
-
-6. Execute as migrations do Prisma:
-```bash
-npm run prisma:generate
-npm run prisma:migrate
-```
-
-## Uso
-
-### Desenvolvimento
-```bash
-npm run dev
-```
-
-### Produção
-```bash
-npm run build
-npm start
-```
-
-### Acessar o painel admin
-Acesse `http://localhost:3000/admin` com as credenciais configuradas no `.env`
-
-### Testes
+## Desenvolvimento
 
 ```bash
-# Executar todos os testes
-npm test
+# Ativar ambiente virtual
+poetry shell
 
-# Testes em modo watch
-npm run test:watch
+# Executar migrations
+alembic upgrade head
 
-# Testes com cobertura
-npm run test:coverage
+# Rodar servidor de desenvolvimento
+poetry run python -m src.main
 
-# Apenas testes unitários
-npm run test:unit
-
-# Apenas testes de integração
-npm run test:integration
+# Ou com uvicorn diretamente
+uvicorn src.main:app --reload --port 3000
 ```
 
-**Importante**: Configure um banco MySQL separado para testes no arquivo `.env.test`
+## Migrations
 
-## API Endpoints
+```bash
+# Criar nova migration
+alembic revision --autogenerate -m "descrição da mudança"
 
-### Checkout Público
-- `GET /api/checkout/plans` - Lista planos e add-ons disponíveis
-- `POST /api/checkout/start` - Inicia processo de checkout
-- `GET /api/checkout/subscription/:id` - Consulta status da assinatura
+# Aplicar migrations
+alembic upgrade head
 
-### Webhook
-- `POST /webhooks/asaas` - Recebe notificações do Asaas
+# Reverter última migration
+alembic downgrade -1
+```
+
+## Testes
+
+```bash
+# Rodar todos os testes
+poetry run pytest
+
+# Rodar com coverage
+poetry run pytest --cov=src
+```
+
+## Deploy
+
+```bash
+# Instalar dependências do serverless
+npm install
+
+# Deploy para dev
+npm run deploy:dev
+
+# Deploy para produção
+npm run deploy:prod
+```
 
 ## Estrutura do Projeto
 
 ```
 src/
-├── admin/          # Configurações do AdminJS
-├── config/         # Configurações e variáveis de ambiente
-├── models/         # Modelos Prisma (definidos em prisma/schema.prisma)
-├── routes/         # Rotas da API
-├── services/       # Serviços (Asaas, Prisma)
-├── webhooks/       # Handlers de webhook
-└── app.ts          # Arquivo principal
+├── main.py           # App FastAPI principal
+├── lambda_handler.py # Handler AWS Lambda
+├── config.py         # Configurações
+├── database.py       # Conexão com banco
+├── enums.py          # Enumerações
+├── models/           # Modelos SQLAlchemy
+├── schemas/          # Schemas Pydantic
+├── services/         # Serviços externos (Asaas)
+└── routers/          # Rotas da API
 ```
 
-## Fluxo de Checkout
+## API Endpoints
 
-1. Cliente seleciona plano e add-ons
-2. Sistema cria/busca cliente no Asaas
-3. Cria assinatura no Asaas
-4. Gera link de pagamento
-5. Cliente é redirecionado para checkout do Asaas
-6. Webhook notifica sobre status do pagamento
-7. Sistema atualiza status da assinatura
+### Checkout
+- `GET /api/checkout/plans` - Listar planos disponíveis
+- `GET /api/checkout/addons` - Listar addons disponíveis  
+- `POST /api/checkout/start` - Iniciar processo de checkout
 
-## Segurança
+### Webhooks
+- `POST /webhooks/asaas` - Receber webhooks do Asaas
 
-- Autenticação obrigatória no painel admin
-- Validação de token nos webhooks
-- Variáveis sensíveis em ambiente
-- Sem exposição de chaves da API
-
-## Deploy AWS
-
-O projeto está configurado para deploy automático na AWS usando GitHub Actions, API Gateway e Lambda.
-
-### Ambientes
-
-- **develop** → Development (dev)
-- **staging** → Staging (stg)
-- **main** → Production (prod)
-
-### Configuração GitHub Secrets
-
-Configure os seguintes secrets no GitHub:
-
-**Por ambiente (DEV, STG, PROD):**
-- `AWS_ROLE_ARN_{ENV}` - ARN da role IAM para deploy
-- `DATABASE_URL_{ENV}` - URL de conexão MySQL
-- `ASAAS_API_KEY_{ENV}` - Chave API do Asaas
-- `ASAAS_WEBHOOK_TOKEN_{ENV}` - Token validação webhook
-- `ADMIN_EMAIL_{ENV}` - Email do admin
-- `ADMIN_PASSWORD_{ENV}` - Senha do admin
-
-**Globais:**
-- `AWS_REGION` - Região AWS (ex: us-east-1)
-- `AWS_ACCOUNT_ID` - ID da conta AWS
-
-### Deploy Manual
-
-Para fazer deploy manual:
-
-```bash
-# Build do Lambda
-./scripts/build-lambda.sh dev
-
-# Deploy CloudFormation
-aws cloudformation deploy \
-  --template-file cloudformation/template.yaml \
-  --stack-name numbr-billing-dev \
-  --parameter-overrides Environment=dev \
-  --capabilities CAPABILITY_IAM
-```
-
-### Arquitetura AWS
-
-- **API Gateway**: REST API com proxy para Lambda
-- **Lambda Function**: Node.js 20.x com Express
-- **Lambda Layer**: Dependências pesadas compartilhadas
-- **CloudWatch Logs**: Logs centralizados
-- **Secrets Manager**: Gerenciamento de credenciais
-
-### URLs por Ambiente
-
-Após o deploy, as URLs serão:
-- Dev: `https://{api-id}.execute-api.{region}.amazonaws.com/dev`
-- Staging: `https://{api-id}.execute-api.{region}.amazonaws.com/stg`
-- Production: `https://{api-id}.execute-api.{region}.amazonaws.com/prod`
-
-O painel admin estará disponível em: `{url}/admin`
+### Health Check
+- `GET /health` - Verificar status da aplicação

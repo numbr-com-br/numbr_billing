@@ -1,0 +1,41 @@
+[tool.poetry]
+name = "numbr-billing"
+version = "1.0.0"
+description = "SaaS billing system with Asaas integration"
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+packages = [{include = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.115.0"
+uvicorn = {extras = ["standard"], version = "^0.32.0"}
+sqlalchemy = "^2.0.36"
+alembic = "^1.14.0"
+pymysql = "^1.1.1"
+aiomysql = "^0.2.0"
+cryptography = "^44.0.0"
+httpx = "^0.28.0"
+python-dotenv = "^1.0.1"
+mangum = "^0.19.0"
+pydantic-settings = "^2.10.1"
+pydantic = "^2.11.7"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.4"
+pytest-asyncio = "^0.25.0"
+ruff = "^0.8.4"
+black = "^24.10.0"
+requests = "^2.32.4"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.black]
+line-length = 100
+target-version = ['py311']

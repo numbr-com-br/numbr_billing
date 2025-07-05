@@ -1,12 +1,58 @@
-node_modules
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Environment
 .env
-.env.local
-dist
+.env.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# Database
+*.db
+*.sqlite3
+alembic/versions/*.pyc
+
+# Serverless
+.serverless/
+node_modules/
+
+# OS
 .DS_Store
-*.log
-.localfiles
-.prisma
-/src/generated/prisma
-tsconfig.tsbuildinfo
-lambda-package.zip
-layer-package.zip
+Thumbs.db
+
+# Local files
+.localfiles/

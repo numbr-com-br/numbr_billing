@@ -54,13 +54,11 @@ ls -la lambda-dist/node_modules/.prisma/client/libquery_engine-* 2>/dev/null || 
 
 # Remove Prisma CLI and other dev dependencies that might have been installed
 echo "Removing development dependencies..."
-rm -rf lambda-dist/node_modules/prisma
-rm -rf lambda-dist/node_modules/@prisma/engines
-rm -rf lambda-dist/node_modules/@prisma/engines-version
-rm -rf lambda-dist/node_modules/typescript
-rm -rf lambda-dist/node_modules/esbuild
-rm -rf lambda-dist/node_modules/@esbuild
-
+rm -rf lambda-dist/node_modules/.prisma/client/libquery_engine-*
+rm -rf lambda-dist/node_modules/.prisma/client/libquery_engine-rhel-*
+rm -rf lambda-dist/node_modules/prisma/libquery_engine-*
+rm -rf lambda-dist/node_modules/.cache/prisma/**
+rm -rf lambda-dist/node_modules/@prisma
 # Skip layer creation - include all dependencies in Lambda package
 echo "Skipping layer creation - all dependencies will be included in Lambda package"
 
@@ -70,7 +68,7 @@ zip -r ../lambda-package.zip . -q
 cd ..
 
 # Clean up
-rm -rf lambda-dist layer
+#rm -rf lambda-dist layer
 
 echo "Lambda package created:"
 echo "  - lambda-package.zip ($(du -h lambda-package.zip | cut -f1))"
