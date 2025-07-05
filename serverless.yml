@@ -8,7 +8,7 @@ provider:
   architecture: x86_64
   stage: ${opt:stage, 'dev'}
   region: ${opt:region, 'us-east-1'}
-  profile: ${opt:aws-profile, 'numbr'}
+  profile: ${opt:aws-profile, ''}
   deploymentBucket:
     name: numbr-serverless-deployments-${self:provider.stage}
   memorySize: 1024
