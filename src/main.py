@@ -1,11 +1,16 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 from contextlib import asynccontextmanager
 from datetime import datetime
 
 from src.routers import checkout, webhooks
+from src.routers.admin_auth import router as admin_auth_router
+from src.routers.admin_users import router as admin_users_router
+from src.routers.admin_roles import router as admin_roles_router
 from src.database import engine, Base
 from src.config import settings
+from src.admin.admin_app import create_admin
 
 
 @asynccontextmanager
@@ -33,6 +38,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add session middleware (required for SQLAdmin)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.jwt_secret_key,
+    session_cookie="numbr_admin_session",
+    max_age=86400,  # 24 hours
+)
+
 # Health check
 @app.get("/health")
 async def health_check():
@@ -44,6 +57,14 @@ async def health_check():
 # Include routers
 app.include_router(checkout.router)
 app.include_router(webhooks.router)
+
+# Include admin routers
+app.include_router(admin_auth_router)
+app.include_router(admin_users_router)
+app.include_router(admin_roles_router)
+
+# Initialize SQLAdmin
+admin = create_admin(app, engine)
 
 # Run with uvicorn
 if __name__ == "__main__":

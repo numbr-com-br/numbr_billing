@@ -17,6 +17,21 @@ uvicorn src.main:app --reload --port 3000
 poetry run uvicorn src.main:app --reload --port 3000
 ```
 
+### Database
+```bash
+# Generate migration
+poetry run alembic revision --autogenerate -m "Description"
+
+# Apply migrations
+poetry run alembic upgrade head
+
+# Rollback migration
+poetry run alembic downgrade -1
+
+# Seed admin data
+poetry run python scripts/seed_admin.py
+```
+
 ### Testing
 ```bash
 # Run all tests
@@ -216,6 +231,49 @@ Domain creation is handled automatically by the deployment process using serverl
 - `POST /webhooks/asaas` - Receive payment notifications from Asaas
   - Requires valid `asaas-signature` header
   - Updates payment and subscription status
+
+## Admin Panel
+
+The project includes a comprehensive admin panel powered by SQLAdmin with JWT-based authentication:
+
+### Features
+- **Multi-user support** with role-based access control (RBAC)
+- **JWT authentication** for stateless operation (ideal for serverless)
+- **Permission system** with granular resource-based permissions
+- **System roles**: Super Admin, Admin, Support, Finance, Viewer
+- **Session management** with token revocation support
+
+### Default Admin Credentials
+- Email: `admin@numbr.com.br`
+- Password: `AdminNumbr2025!`
+- **Important**: Change this password after first login!
+
+### Admin Models (`src/models/admin_user.py`)
+- **AdminUser**: User accounts with email/password authentication
+- **AdminRole**: Roles with customizable permissions
+- **AdminSession**: Active session tracking for security
+
+### Admin API Endpoints
+- `/api/admin/auth/login` - User login
+- `/api/admin/auth/logout` - User logout  
+- `/api/admin/auth/refresh` - Refresh access token
+- `/api/admin/auth/me` - Get current user info
+- `/api/admin/auth/change-password` - Change user password
+- `/api/admin/auth/sessions` - List active sessions
+- `/api/admin/users/*` - User management (requires ADMIN_USERS permissions)
+- `/api/admin/roles/*` - Role management (requires ADMIN_ROLES permissions)
+
+### Admin Panel Access
+- **URL**: `/admin`
+- **Authentication**: Required - redirects to login page if not authenticated
+- **Authorization**: Permission-based access to different sections
+- **Interface**: SQLAdmin with custom model views
+
+### Seeding Admin Data
+Run the seed script to create initial system roles and superuser:
+```bash
+poetry run python scripts/seed_admin.py
+```
 
 ## Development Workflow
 

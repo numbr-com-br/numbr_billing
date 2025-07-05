@@ -47,6 +47,7 @@ jobs:
         ASAAS_API_KEY: test_key
         ASAAS_API_URL: https://sandbox.asaas.com/api/v3
         ASAAS_WEBHOOK_TOKEN: test_token
+        JWT_SECRET_KEY: test_jwt_secret_key_for_testing_only
       run: |
         poetry run pytest tests/ -v --cov=src --cov-report=term-missing || true
 
@@ -125,6 +126,7 @@ jobs:
       env:
         ASAAS_API_KEY: ${{ secrets.ASAAS_API_KEY || vars.ASAAS_API_KEY }}
         ASAAS_WEBHOOK_TOKEN: ${{ vars.ASAAS_WEBHOOK_TOKEN }}
+        JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY || vars.JWT_SECRET_KEY }}
         ADMIN_EMAIL: ${{ vars.ADMIN_EMAIL }}
         ADMIN_PASSWORD: ${{ vars.ADMIN_PASSWORD }}
 

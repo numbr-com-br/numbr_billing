@@ -17,7 +17,8 @@ from src.models import *  # Import all models
 config = context.config
 
 # Set database URL from environment
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# Use raw=True to avoid interpolation issues with % characters
+config.set_main_option("sqlalchemy.url", settings.database_url.replace("%", "%%"))
 
 # Interpret the config file for Python logging
 if config.config_file_name is not None:
