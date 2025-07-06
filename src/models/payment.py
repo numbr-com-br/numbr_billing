@@ -8,7 +8,7 @@ import uuid
 
 class Payment(Base):
     __tablename__ = "payments"
-    
+
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     subscription_id = Column(String(36), ForeignKey("subscriptions.id"), nullable=False)
     amount = Column(Numeric(10, 2), nullable=False)
@@ -24,5 +24,5 @@ class Payment(Base):
     external_reference = Column(String(255), nullable=True)
     created_at = Column(DateTime, nullable=False, server_default=func.now())
     updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
-    
+
     subscription = relationship("Subscription", back_populates="payments")

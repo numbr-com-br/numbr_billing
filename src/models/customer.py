@@ -7,7 +7,7 @@ import uuid
 
 class Customer(Base):
     __tablename__ = "customers"
-    
+
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(255), nullable=False)
     email = Column(String(255), nullable=False, unique=True)
@@ -17,5 +17,5 @@ class Customer(Base):
     asaas_customer_id = Column(String(255), nullable=True)
     created_at = Column(DateTime, nullable=False, server_default=func.now())
     updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
-    
+
     subscriptions = relationship("Subscription", back_populates="customer")

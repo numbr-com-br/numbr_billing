@@ -30,19 +30,19 @@ class AdminUserCreate(AdminUserBase):
     password: str = Field(..., min_length=8, max_length=100)
     role_ids: List[str] = []
     is_superuser: bool = False
-    
-    @field_validator('password')
+
+    @field_validator("password")
     def validate_password(cls, v):
         if len(v) < 8:
-            raise ValueError('Password must be at least 8 characters long')
-        if not re.search(r'[A-Z]', v):
-            raise ValueError('Password must contain at least one uppercase letter')
-        if not re.search(r'[a-z]', v):
-            raise ValueError('Password must contain at least one lowercase letter')
-        if not re.search(r'\d', v):
-            raise ValueError('Password must contain at least one digit')
+            raise ValueError("Password must be at least 8 characters long")
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not re.search(r"\d", v):
+            raise ValueError("Password must contain at least one digit")
         if not re.search(r'[!@#$%^&*(),.?":{}|<>]', v):
-            raise ValueError('Password must contain at least one special character')
+            raise ValueError("Password must contain at least one special character")
         return v
 
 
@@ -52,21 +52,21 @@ class AdminUserUpdate(BaseModel):
     is_active: Optional[bool] = None
     password: Optional[str] = Field(None, min_length=8, max_length=100)
     role_ids: Optional[List[str]] = None
-    
-    @field_validator('password')
+
+    @field_validator("password")
     def validate_password(cls, v):
         if v is None:
             return v
         if len(v) < 8:
-            raise ValueError('Password must be at least 8 characters long')
-        if not re.search(r'[A-Z]', v):
-            raise ValueError('Password must contain at least one uppercase letter')
-        if not re.search(r'[a-z]', v):
-            raise ValueError('Password must contain at least one lowercase letter')
-        if not re.search(r'\d', v):
-            raise ValueError('Password must contain at least one digit')
+            raise ValueError("Password must be at least 8 characters long")
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not re.search(r"\d", v):
+            raise ValueError("Password must contain at least one digit")
         if not re.search(r'[!@#$%^&*(),.?":{}|<>]', v):
-            raise ValueError('Password must contain at least one special character')
+            raise ValueError("Password must contain at least one special character")
         return v
 
 
@@ -76,9 +76,9 @@ class AdminUserResponse(AdminUserBase):
     last_login: Optional[datetime]
     created_at: datetime
     updated_at: datetime
-    roles: List['AdminRoleResponse'] = []
+    roles: List["AdminRoleResponse"] = []
     permissions: List[str] = []
-    
+
     class Config:
         from_attributes = True
 
@@ -105,7 +105,7 @@ class AdminRoleResponse(AdminRoleBase):
     created_at: datetime
     updated_at: datetime
     user_count: Optional[int] = 0
-    
+
     class Config:
         from_attributes = True
 
@@ -113,19 +113,19 @@ class AdminRoleResponse(AdminRoleBase):
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str = Field(..., min_length=8, max_length=100)
-    
-    @field_validator('new_password')
+
+    @field_validator("new_password")
     def validate_password(cls, v):
         if len(v) < 8:
-            raise ValueError('Password must be at least 8 characters long')
-        if not re.search(r'[A-Z]', v):
-            raise ValueError('Password must contain at least one uppercase letter')
-        if not re.search(r'[a-z]', v):
-            raise ValueError('Password must contain at least one lowercase letter')
-        if not re.search(r'\d', v):
-            raise ValueError('Password must contain at least one digit')
+            raise ValueError("Password must be at least 8 characters long")
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not re.search(r"\d", v):
+            raise ValueError("Password must contain at least one digit")
         if not re.search(r'[!@#$%^&*(),.?":{}|<>]', v):
-            raise ValueError('Password must contain at least one special character')
+            raise ValueError("Password must contain at least one special character")
         return v
 
 
@@ -136,6 +136,6 @@ class SessionResponse(BaseModel):
     created_at: datetime
     expires_at: datetime
     is_current: bool = False
-    
+
     class Config:
         from_attributes = True

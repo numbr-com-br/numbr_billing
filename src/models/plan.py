@@ -8,7 +8,7 @@ import uuid
 
 class Plan(Base):
     __tablename__ = "plans"
-    
+
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
@@ -17,6 +17,6 @@ class Plan(Base):
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, nullable=False, server_default=func.now())
     updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
-    
+
     subscriptions = relationship("Subscription", back_populates="plan")
     plan_pricings = relationship("PlanPricing", back_populates="plan", cascade="all, delete-orphan")

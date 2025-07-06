@@ -24,11 +24,7 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
 
 
-app = FastAPI(
-    title="Numbr Billing API",
-    version="1.0.0",
-    lifespan=lifespan
-)
+app = FastAPI(title="Numbr Billing API", version="1.0.0", lifespan=lifespan)
 
 # Configure CORS
 app.add_middleware(
@@ -50,13 +46,12 @@ app.add_middleware(
 # Add cookie middleware for Lambda-compatible admin authentication
 app.add_middleware(AdminCookieMiddleware)
 
+
 # Health check
 @app.get("/health")
 async def health_check():
-    return {
-        "status": "ok",
-        "timestamp": datetime.now().isoformat()
-    }
+    return {"status": "ok", "timestamp": datetime.now().isoformat()}
+
 
 # Include routers
 app.include_router(checkout.router)
@@ -73,9 +68,5 @@ admin = create_admin(app, engine)
 # Run with uvicorn
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "src.main:app",
-        host="0.0.0.0",
-        port=settings.port,
-        reload=True
-    )
+
+    uvicorn.run("src.main:app", host="0.0.0.0", port=settings.port, reload=True)

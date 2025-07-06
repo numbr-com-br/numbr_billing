@@ -42,13 +42,15 @@ def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta]
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    
-    to_encode.update({
-        "exp": expire,
-        "iat": datetime.utcnow(),
-        "jti": str(uuid.uuid4())  # JWT ID for blacklisting
-    })
-    
+
+    to_encode.update(
+        {
+            "exp": expire,
+            "iat": datetime.utcnow(),
+            "jti": str(uuid.uuid4()),  # JWT ID for blacklisting
+        }
+    )
+
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -61,41 +63,35 @@ def create_refresh_token(user_id: str) -> str:
         "type": "refresh",
         "exp": expire,
         "iat": datetime.utcnow(),
-        "jti": str(uuid.uuid4())
+        "jti": str(uuid.uuid4()),
     }
-    
+
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 
-async def authenticate_user(
-    db: AsyncSession, 
-    email: str, 
-    password: str
-) -> Optional[AdminUser]:
+async def authenticate_user(db: AsyncSession, email: str, password: str) -> Optional[AdminUser]:
     """Authenticate user with email and password"""
     from sqlalchemy.orm import selectinload
-    
+
     result = await db.execute(
-        select(AdminUser)
-        .where(AdminUser.email == email)
-        .options(selectinload(AdminUser.roles))
+        select(AdminUser).where(AdminUser.email == email).options(selectinload(AdminUser.roles))
     )
     user = result.scalar_one_or_none()
-    
+
     if not user:
         return None
     if not verify_password(password, user.password_hash):
         return None
     if not user.is_active:
         return None
-    
+
     return user
 
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: AsyncSession = Depends(get_session)
+    db: AsyncSession = Depends(get_session),
 ) -> AdminUser:
     """Get current authenticated user from JWT token"""
     credentials_exception = HTTPException(
@@ -103,86 +99,72 @@ async def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
+
     try:
         payload = jwt.decode(credentials.credentials, JWT_SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
         token_type: str = payload.get("type", "access")
         jti: str = payload.get("jti")
-        
+
         if user_id is None or token_type != "access":
             raise credentials_exception
-            
+
     except JWTError:
         raise credentials_exception
-    
+
     # Check if token is blacklisted
     session_result = await db.execute(
         select(AdminSession).where(
-            and_(
-                AdminSession.token_jti == jti,
-                AdminSession.revoked_at.isnot(None)
-            )
+            and_(AdminSession.token_jti == jti, AdminSession.revoked_at.isnot(None))
         )
     )
     if session_result.scalar_one_or_none():
         raise credentials_exception
-    
+
     # Get user with roles
     from sqlalchemy.orm import selectinload
-    
+
     result = await db.execute(
-        select(AdminUser)
-        .where(AdminUser.id == user_id)
-        .options(selectinload(AdminUser.roles))
+        select(AdminUser).where(AdminUser.id == user_id).options(selectinload(AdminUser.roles))
     )
     user = result.scalar_one_or_none()
-    
+
     if user is None:
         raise credentials_exception
     if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Inactive user"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Inactive user")
+
     return user
 
 
 async def get_current_active_superuser(
-    current_user: AdminUser = Depends(get_current_user)
+    current_user: AdminUser = Depends(get_current_user),
 ) -> AdminUser:
     """Get current user if they are a superuser"""
     if not current_user.is_superuser:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not enough permissions")
     return current_user
 
 
 class PermissionChecker:
     """Dependency to check if user has required permissions"""
-    
+
     def __init__(self, required_permissions: list[str]):
         self.required_permissions = required_permissions
-    
-    async def __call__(
-        self, 
-        current_user: AdminUser = Depends(get_current_user)
-    ) -> AdminUser:
+
+    async def __call__(self, current_user: AdminUser = Depends(get_current_user)) -> AdminUser:
         if current_user.is_superuser:
             return current_user
-            
+
         user_permissions = current_user.permissions
-        
+
         for permission in self.required_permissions:
             if permission not in user_permissions:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"Permission required: {permission}"
+                    detail=f"Permission required: {permission}",
                 )
-        
+
         return current_user
 
 
@@ -191,10 +173,7 @@ require_permission = PermissionChecker
 
 
 async def create_session_record(
-    db: AsyncSession,
-    user: AdminUser,
-    token_jti: str,
-    request: Optional[Any] = None
+    db: AsyncSession, user: AdminUser, token_jti: str, request: Optional[Any] = None
 ) -> AdminSession:
     """Create a session record for tracking"""
     session = AdminSession(
@@ -202,9 +181,9 @@ async def create_session_record(
         token_jti=token_jti,
         ip_address=request.client.host if request else None,
         user_agent=request.headers.get("user-agent") if request else None,
-        expires_at=datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expires_at=datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
-    
+
     db.add(session)
     await db.commit()
     return session
@@ -212,11 +191,9 @@ async def create_session_record(
 
 async def revoke_token(db: AsyncSession, jti: str) -> None:
     """Revoke a token by its JTI"""
-    result = await db.execute(
-        select(AdminSession).where(AdminSession.token_jti == jti)
-    )
+    result = await db.execute(select(AdminSession).where(AdminSession.token_jti == jti))
     session = result.scalar_one_or_none()
-    
+
     if session:
         session.revoked_at = datetime.utcnow()
         await db.commit()
@@ -225,11 +202,9 @@ async def revoke_token(db: AsyncSession, jti: str) -> None:
 async def cleanup_expired_sessions(db: AsyncSession) -> int:
     """Clean up expired sessions - should be run periodically"""
     from sqlalchemy import delete
-    
+
     result = await db.execute(
-        delete(AdminSession).where(
-            AdminSession.expires_at < datetime.utcnow()
-        )
+        delete(AdminSession).where(AdminSession.expires_at < datetime.utcnow())
     )
     await db.commit()
     return result.rowcount
