@@ -29,7 +29,7 @@ COOKIE_SECURE = settings.environment not in ["dev", "stg", "staging", "developme
 COOKIE_HTTPONLY = True
 COOKIE_SAMESITE = "lax"
 COOKIE_DOMAIN = None  # Let browser handle domain
-COOKIE_PATH = "/admin"  # Restrict to admin routes
+COOKIE_PATH = "/"  # Allow cookie for all paths
 
 
 class LambdaAdminAuthBackend(AuthenticationBackend):
@@ -37,6 +37,10 @@ class LambdaAdminAuthBackend(AuthenticationBackend):
     Authentication backend for SQLAdmin that works in AWS Lambda.
     Uses JWT tokens in cookies instead of server-side sessions.
     """
+    
+    def __init__(self, secret_key: str):
+        """Initialize with secret key for SQLAdmin compatibility"""
+        super().__init__(secret_key)
 
     async def login(self, request: Request) -> bool:
         """Handle admin login and set JWT cookie"""
@@ -76,12 +80,15 @@ class LambdaAdminAuthBackend(AuthenticationBackend):
             # Set cookie in request (SQLAdmin will handle the response)
             # Use a custom attribute to pass the token to the response
             request.state._admin_token = access_token
+            
+            # Also set in session for SQLAdmin compatibility
+            request.session["token"] = access_token
 
             return True
 
     async def logout(self, request: Request) -> bool:
         """Handle logout and clear JWT cookie"""
-        token = request.cookies.get(COOKIE_NAME)
+        token = request.cookies.get(COOKIE_NAME) or request.session.get("token")
 
         if token:
             try:
@@ -95,13 +102,17 @@ class LambdaAdminAuthBackend(AuthenticationBackend):
             except Exception:
                 pass  # Token might be invalid, continue with logout
 
+        # Clear session
+        request.session.clear()
+        
         # Mark for cookie deletion
         request.state._clear_admin_token = True
         return True
 
     async def authenticate(self, request: Request) -> Optional[RedirectResponse]:
         """Verify JWT token from cookie"""
-        token = request.cookies.get(COOKIE_NAME)
+        # Check session first (SQLAdmin compatibility)
+        token = request.session.get("token") or request.cookies.get(COOKIE_NAME)
 
         if not token:
             return RedirectResponse(request.url_for("admin:login"), status_code=302)
@@ -118,6 +129,9 @@ class LambdaAdminAuthBackend(AuthenticationBackend):
                 "permissions": payload.get("permissions", []),
                 "roles": payload.get("roles", []),
             }
+            
+            # Also ensure it's in the session
+            request.session["token"] = token
 
             return None
 

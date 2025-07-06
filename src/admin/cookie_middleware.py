@@ -13,8 +13,8 @@ from src.admin.sqladmin_lambda import (
     COOKIE_HTTPONLY,
     COOKIE_SAMESITE,
     COOKIE_PATH,
-    ACCESS_TOKEN_EXPIRE_MINUTES,
 )
+from src.admin.auth import ACCESS_TOKEN_EXPIRE_MINUTES
 
 
 class AdminCookieMiddleware(BaseHTTPMiddleware):
@@ -27,8 +27,25 @@ class AdminCookieMiddleware(BaseHTTPMiddleware):
         # Process the request
         response = await call_next(request)
 
+        # Special handling for admin login POST
+        if request.url.path == "/admin/login" and request.method == "POST":
+            # Check if login was successful (redirect to /admin/)
+            if response.status_code in [302, 303] and response.headers.get("location", "").endswith("/admin/"):
+                # Get token from session that was set during login
+                token = request.session.get("token")
+                if token:
+                    response.set_cookie(
+                        key=COOKIE_NAME,
+                        value=token,
+                        max_age=60 * ACCESS_TOKEN_EXPIRE_MINUTES,
+                        path=COOKIE_PATH,
+                        secure=COOKIE_SECURE,
+                        httponly=COOKIE_HTTPONLY,
+                        samesite=COOKIE_SAMESITE,
+                    )
+
         # Check if we need to set the admin token cookie
-        if hasattr(request.state, "_admin_token"):
+        elif hasattr(request.state, "_admin_token"):
             response.set_cookie(
                 key=COOKIE_NAME,
                 value=request.state._admin_token,
