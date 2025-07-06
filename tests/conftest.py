@@ -8,9 +8,16 @@ import os
 
 # Set test environment
 os.environ["ENVIRONMENT"] = "test"
-os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL", "mysql+pymysql://root:root@localhost/numbr_billing_test")
-os.environ["ASAAS_API_KEY"] = "test_api_key"
-os.environ["ASAAS_WEBHOOK_TOKEN"] = "test_webhook_token"
+# Use DATABASE_URL if already set (e.g., in CI), otherwise use default
+if "DATABASE_URL" not in os.environ:
+    os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL", "mysql+pymysql://root:root@localhost/numbr_billing_test")
+# Only set test API keys if not already set
+if "ASAAS_API_KEY" not in os.environ:
+    os.environ["ASAAS_API_KEY"] = "test_api_key"
+if "ASAAS_WEBHOOK_TOKEN" not in os.environ:
+    os.environ["ASAAS_WEBHOOK_TOKEN"] = "test_webhook_token"
+if "JWT_SECRET_KEY" not in os.environ:
+    os.environ["JWT_SECRET_KEY"] = "test_secret_key_for_jwt_authentication"
 
 from src.database import Base
 from src.main import app
