@@ -55,4 +55,4 @@ node_modules/
 Thumbs.db
 
 # Local files
-.localfiles/
+.localfiles/cookies.txt

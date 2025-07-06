@@ -11,6 +11,7 @@ from src.routers.admin_roles import router as admin_roles_router
 from src.database import engine, Base
 from src.config import settings
 from src.admin.admin_app import create_admin
+from src.admin.cookie_middleware import AdminCookieMiddleware
 
 
 @asynccontextmanager
@@ -45,6 +46,9 @@ app.add_middleware(
     session_cookie="numbr_admin_session",
     max_age=86400,  # 24 hours
 )
+
+# Add cookie middleware for Lambda-compatible admin authentication
+app.add_middleware(AdminCookieMiddleware)
 
 # Health check
 @app.get("/health")

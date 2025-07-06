@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     jwt_secret_key: str
     port: int = 3000
     is_lambda: bool = False
+    environment: str = "production"
     
     class Config:
         env_file = ".env"
