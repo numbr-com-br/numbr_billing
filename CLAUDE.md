@@ -261,6 +261,24 @@ Domains are configured in `zappa_settings.json` and managed by Zappa:
 - Easy rollback capabilities
 - Direct integration with Poetry (no requirements.txt needed)
 
+### GitHub Actions Configuration
+The deployment pipeline requires several secrets and variables configured in GitHub:
+
+**Secrets:**
+- `AWS_ACCESS_KEY_ID` - AWS access key
+- `AWS_SECRET_ACCESS_KEY` - AWS secret key
+- `ASAAS_API_KEY_[DEV|STAGING|PROD]` - Asaas API keys per environment
+- `ASAAS_WEBHOOK_TOKEN` - Webhook signature validation
+- `JWT_SECRET_KEY` - JWT token signing
+
+**Variables:**
+- `DATABASE_URL_[DEV|STAGING|PROD]` - MySQL connection strings
+- `ASAAS_API_URL` - Asaas API base URL
+- `VPC_SUBNET_IDS` - Comma-separated subnet IDs (optional)
+- `VPC_SECURITY_GROUP_IDS` - Comma-separated security group IDs (optional)
+
+See `.github/workflows/README.md` for detailed configuration instructions.
+
 ## API Endpoints
 
 ### Health Check
@@ -330,9 +348,10 @@ The project includes a comprehensive admin panel powered by SQLAdmin with JWT-ba
 ### Admin Panel Architecture
 The admin panel uses standard SQLAdmin authentication with session-based authentication:
 - Authentication backend: `src/admin/sqladmin_config.py`
-- Session storage: In-memory (development) or Redis (production)
+- Session storage: Server-side sessions (compatible with Lambda)
 - Secure cookies only in production (HTTPS)
 - Session tracking in database for security
+- Default admin created by `scripts/seed_admin.py`
 
 ### Admin Models (`src/models/admin_user.py`)
 - **AdminUser**: User accounts with email/password authentication

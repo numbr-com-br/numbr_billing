@@ -8,7 +8,74 @@ on:
       - main
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: test_numbr_billing
+          MYSQL_USER: test
+          MYSQL_PASSWORD: test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: latest
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+    
+    - name: Load cached venv
+      id: cached-poetry-dependencies
+      uses: actions/cache@v4
+      with:
+        path: .venv
+        key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+    
+    - name: Install dependencies
+      run: poetry install --no-interaction --no-root
+    
+    - name: Wait for MySQL
+      run: |
+        while ! mysqladmin ping -h"127.0.0.1" -P"3306" --silent; do
+          sleep 1
+        done
+    
+    - name: Run tests
+      run: |
+        # Create test database URL
+        export DATABASE_URL="mysql+pymysql://test:test@127.0.0.1:3306/test_numbr_billing"
+        export ASAAS_API_KEY="test_key"
+        export ASAAS_API_URL="https://sandbox.asaas.com/api/v3"
+        export ASAAS_WEBHOOK_TOKEN="test_token"
+        export JWT_SECRET_KEY="test_secret_key_for_jwt_authentication"
+        export ENVIRONMENT="test"
+        
+        # Run migrations for test database
+        poetry run alembic upgrade head
+        
+        # Run tests
+        poetry run pytest tests/ -v --tb=short
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
     
     steps:
@@ -34,11 +101,12 @@ jobs:
         key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
     
     - name: Install dependencies
-      if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-      run: poetry install --no-interaction --no-root --without dev
-    
-    - name: Install Zappa
-      run: poetry add zappa
+      run: |
+        poetry install --no-interaction --no-root
+        poetry show zappa  # Verify Zappa is installed
+        
+    - name: Make scripts executable
+      run: chmod +x scripts/*.py
     
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
@@ -67,28 +135,69 @@ jobs:
         
         # Convert mysql:// to mysql+pymysql:// for SQLAlchemy
         DB_URL_CONVERTED=$(echo "$DB_URL" | sed 's|mysql://|mysql+pymysql://|')
+        echo "DATABASE_URL=$DB_URL_CONVERTED" >> $GITHUB_ENV
+        
+        # Export environment variables for the update script
+        export DATABASE_URL="$DB_URL_CONVERTED"
+        export ASAAS_API_KEY="$ASAAS_KEY"
+        export ASAAS_API_URL="${{ vars.ASAAS_API_URL }}"
+        export ASAAS_WEBHOOK_TOKEN="${{ secrets.ASAAS_WEBHOOK_TOKEN }}"
+        export JWT_SECRET_KEY="${{ secrets.JWT_SECRET_KEY }}"
+        export VPC_SUBNET_IDS="${{ vars.VPC_SUBNET_IDS }}"
+        export VPC_SECURITY_GROUP_IDS="${{ vars.VPC_SECURITY_GROUP_IDS }}"
         
         # Update Zappa settings with environment variables
-        poetry run zappa update $STAGE \
-          -s DATABASE_URL="$DB_URL_CONVERTED" \
-          -s ASAAS_API_KEY="$ASAAS_KEY" \
-          -s ASAAS_API_URL="${{ vars.ASAAS_API_URL }}" \
-          -s ASAAS_WEBHOOK_TOKEN="${{ secrets.ASAAS_WEBHOOK_TOKEN }}" \
-          -s JWT_SECRET_KEY="${{ secrets.JWT_SECRET_KEY }}"
+        poetry run python scripts/update_zappa_settings.py $STAGE
     
     - name: Run database migrations
       run: |
-        export DATABASE_URL=$(echo "${{ vars.DATABASE_URL_DEV }}" | sed 's|mysql://|mysql+pymysql://|')
+        # Use the DATABASE_URL from previous step based on environment
         poetry run alembic upgrade head
     
     - name: Deploy with Zappa
       run: |
-        # Check if deployment exists
-        if poetry run zappa status ${{ env.STAGE }} 2>&1 | grep -q "not deployed"; then
-          poetry run zappa deploy ${{ env.STAGE }}
+        # Check if deployment exists and deploy/update accordingly
+        if poetry run zappa status ${{ env.STAGE }} 2>&1 | grep -q "Error"  || 
+           poetry run zappa status ${{ env.STAGE }} 2>&1 | grep -q "not deployed"; then
+          echo "Deploying new Lambda function..."
+          poetry run zappa deploy ${{ env.STAGE }} --disable_progress
         else
-          poetry run zappa update ${{ env.STAGE }}
+          echo "Updating existing Lambda function..."
+          poetry run zappa update ${{ env.STAGE }} --disable_progress
         fi
     
     - name: Get deployment info
       run: poetry run zappa status ${{ env.STAGE }}
+    
+    - name: Seed admin data if needed
+      run: |
+        # Seed admin user for the deployed environment
+        poetry run python scripts/seed_admin.py || echo "Admin seeding may have failed or admin already exists"
+    
+    - name: Test deployment health
+      run: |
+        # Get the API Gateway URL
+        API_URL=$(poetry run zappa status ${{ env.STAGE }} | grep "API Gateway URL" | awk '{print $4}')
+        echo "Testing deployment at: $API_URL"
+        
+        # Test health endpoint
+        echo "Testing health endpoint..."
+        HEALTH_RESPONSE=$(curl -s "${API_URL}health")
+        echo "Health response: $HEALTH_RESPONSE"
+        
+        if ! echo "$HEALTH_RESPONSE" | grep -q "healthy"; then
+          echo "Health check failed!"
+          exit 1
+        fi
+        
+        # Test admin panel accessibility
+        echo "Testing admin panel..."
+        ADMIN_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "${API_URL}admin/")
+        echo "Admin panel HTTP status: $ADMIN_RESPONSE"
+        
+        if [[ "$ADMIN_RESPONSE" != "302" && "$ADMIN_RESPONSE" != "200" ]]; then
+          echo "Admin panel not accessible!"
+          exit 1
+        fi
+        
+        echo "Deployment tests passed!"
