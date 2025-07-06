@@ -119,16 +119,16 @@ jobs:
       run: |
         if [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
           STAGE="dev"
-          DB_URL="${{ vars.DATABASE_URL_DEV }}"
-          ASAAS_KEY="${{ secrets.ASAAS_API_KEY_DEV }}"
+          DB_URL="${{ vars.DATABASE_URL }}"
+          ASAAS_KEY="${{ vars.ASAAS_API_KEY }}"
         elif [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
           STAGE="staging"
-          DB_URL="${{ vars.DATABASE_URL_STAGING }}"
-          ASAAS_KEY="${{ secrets.ASAAS_API_KEY_STAGING }}"
+          DB_URL="${{ vars.DATABASE_URL }}"
+          ASAAS_KEY="${{ vars.ASAAS_API_KEY }}"
         elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
           STAGE="prod"
-          DB_URL="${{ vars.DATABASE_URL_PROD }}"
-          ASAAS_KEY="${{ secrets.ASAAS_API_KEY_PROD }}"
+          DB_URL="${{ vars.DATABASE_URL }}"
+          ASAAS_KEY="${{ vars.ASAAS_API_KEY }}"
         fi
         
         echo "STAGE=$STAGE" >> $GITHUB_ENV
@@ -140,9 +140,9 @@ jobs:
         # Export environment variables for the update script
         export DATABASE_URL="$DB_URL_CONVERTED"
         export ASAAS_API_KEY="$ASAAS_KEY"
-        export ASAAS_API_URL="${{ vars.ASAAS_API_URL }}"
-        export ASAAS_WEBHOOK_TOKEN="${{ secrets.ASAAS_WEBHOOK_TOKEN }}"
-        export JWT_SECRET_KEY="${{ secrets.JWT_SECRET_KEY }}"
+        export ASAAS_API_URL="https://sandbox.asaas.com/api/v3"
+        export ASAAS_WEBHOOK_TOKEN="${{ vars.ASAAS_WEBHOOK_TOKEN }}"
+        export JWT_SECRET_KEY="test_secret_key_for_jwt_authentication"
         export VPC_SUBNET_IDS="${{ vars.VPC_SUBNET_IDS }}"
         export VPC_SECURITY_GROUP_IDS="${{ vars.VPC_SECURITY_GROUP_IDS }}"
         
