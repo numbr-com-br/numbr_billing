@@ -1,13 +1,13 @@
 from sqladmin import Admin
-from src.admin.sqladmin_lambda import LambdaAdminAuthBackend
+from src.admin.sqladmin_config import AdminAuthBackend
 from src.admin.model_views import admin_views
 from src.config import settings
 
 
 def create_admin(app, engine):
     """Create and configure SQLAdmin instance"""
-    # Initialize Lambda-compatible authentication backend
-    authentication_backend = LambdaAdminAuthBackend(secret_key=settings.jwt_secret_key)
+    # Initialize authentication backend
+    authentication_backend = AdminAuthBackend(secret_key=settings.jwt_secret_key)
 
     # Create admin instance
     admin = Admin(

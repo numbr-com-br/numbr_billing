@@ -1,4 +1,4 @@
-from src.admin.sqladmin_lambda import LambdaSecureModelView as SecureModelView
+from src.admin.sqladmin_config import SecureModelView as SecureModelView
 from src.admin.permissions import Permission
 from src.models import (
     Customer,

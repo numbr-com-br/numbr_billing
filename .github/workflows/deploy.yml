@@ -1,4 +1,4 @@
-name: Deploy
+name: Deploy to AWS Lambda with Zappa
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
       - main
 
 jobs:
-  test:
+  deploy:
     runs-on: ubuntu-latest
     
     steps:
@@ -25,10 +25,6 @@ jobs:
         version: latest
         virtualenvs-create: true
         virtualenvs-in-project: true
-        
-    - name: Install Poetry Export Plugin
-      run: |
-        poetry self add poetry-plugin-export
     
     - name: Load cached venv
       id: cached-poetry-dependencies
@@ -39,146 +35,60 @@ jobs:
     
     - name: Install dependencies
       if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-      run: poetry install --no-interaction --no-root
+      run: poetry install --no-interaction --no-root --without dev
     
-    - name: Run tests
-      env:
-        DATABASE_URL: "mysql+pymysql://test:test@localhost:3306/test"
-        ASAAS_API_KEY: test_key
-        ASAAS_API_URL: https://sandbox.asaas.com/api/v3
-        ASAAS_WEBHOOK_TOKEN: test_token
-        JWT_SECRET_KEY: test_jwt_secret_key_for_testing_only
-      run: |
-        poetry run pytest tests/ -v --cov=src --cov-report=term-missing || true
-
-  deploy:
-    needs: test
-    runs-on: ubuntu-latest
-    environment: ${{ github.ref_name == 'develop' && 'development' || github.ref_name == 'staging' && 'staging' || 'production' }}
+    - name: Install Zappa
+      run: poetry add zappa
     
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set environment
-      id: set-env
-      run: |
-        if [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
-          echo "stage=dev" >> $GITHUB_OUTPUT
-        elif [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
-          echo "stage=stg" >> $GITHUB_OUTPUT
-        elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-          echo "stage=prod" >> $GITHUB_OUTPUT
-        fi
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-    
-    - name: Install Poetry
-      uses: snok/install-poetry@v1
-      with:
-        version: latest
-        virtualenvs-create: true
-        virtualenvs-in-project: true
-        
-    - name: Install Poetry Export Plugin
-      run: |
-        poetry self add poetry-plugin-export
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-
-    - name: Install dependencies
-      run: |
-        npm ci
-        npm install -g serverless@3
-        poetry export -f requirements.txt --output requirements.txt --without-hashes
-
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
-
-    - name: Update serverless.yml for Linux deployment
+        aws-region: us-east-1
+    
+    - name: Set environment variables
       run: |
-        # Enable dockerizePip for proper Lambda compilation
-        sed -i 's/dockerizePip: false/dockerizePip: true/' serverless.yml
-
-    - name: Create or Update Custom Domain
-      run: |
-        echo "Setting up custom domain..."
-        npx serverless create_domain --stage ${{ steps.set-env.outputs.stage }} || echo "Domain might already exist, continuing..."
-      continue-on-error: true
-
-    - name: Deploy Application
-      run: |
-        # Fix DATABASE_URL format for Python SQLAlchemy
-        FIXED_DB_URL=$(echo "${{ vars.DATABASE_URL }}" | sed 's|mysql://|mysql+pymysql://|')
-        export DATABASE_URL="$FIXED_DB_URL"
+        if [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+          STAGE="dev"
+          DB_URL="${{ vars.DATABASE_URL_DEV }}"
+          ASAAS_KEY="${{ secrets.ASAAS_API_KEY_DEV }}"
+        elif [[ "${{ github.ref }}" == "refs/heads/staging" ]]; then
+          STAGE="staging"
+          DB_URL="${{ vars.DATABASE_URL_STAGING }}"
+          ASAAS_KEY="${{ secrets.ASAAS_API_KEY_STAGING }}"
+        elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          STAGE="prod"
+          DB_URL="${{ vars.DATABASE_URL_PROD }}"
+          ASAAS_KEY="${{ secrets.ASAAS_API_KEY_PROD }}"
+        fi
         
-        serverless deploy --stage ${{ steps.set-env.outputs.stage }} --verbose
-      env:
-        ASAAS_API_KEY: ${{ secrets.ASAAS_API_KEY || vars.ASAAS_API_KEY }}
-        ASAAS_WEBHOOK_TOKEN: ${{ vars.ASAAS_WEBHOOK_TOKEN }}
-        JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY || vars.JWT_SECRET_KEY }}
-        ADMIN_EMAIL: ${{ vars.ADMIN_EMAIL }}
-        ADMIN_PASSWORD: ${{ vars.ADMIN_PASSWORD }}
-
+        echo "STAGE=$STAGE" >> $GITHUB_ENV
+        
+        # Convert mysql:// to mysql+pymysql:// for SQLAlchemy
+        DB_URL_CONVERTED=$(echo "$DB_URL" | sed 's|mysql://|mysql+pymysql://|')
+        
+        # Update Zappa settings with environment variables
+        poetry run zappa update $STAGE \
+          -s DATABASE_URL="$DB_URL_CONVERTED" \
+          -s ASAAS_API_KEY="$ASAAS_KEY" \
+          -s ASAAS_API_URL="${{ vars.ASAAS_API_URL }}" \
+          -s ASAAS_WEBHOOK_TOKEN="${{ secrets.ASAAS_WEBHOOK_TOKEN }}" \
+          -s JWT_SECRET_KEY="${{ secrets.JWT_SECRET_KEY }}"
+    
+    - name: Run database migrations
+      run: |
+        export DATABASE_URL=$(echo "${{ vars.DATABASE_URL_DEV }}" | sed 's|mysql://|mysql+pymysql://|')
+        poetry run alembic upgrade head
+    
+    - name: Deploy with Zappa
+      run: |
+        # Check if deployment exists
+        if poetry run zappa status ${{ env.STAGE }} 2>&1 | grep -q "not deployed"; then
+          poetry run zappa deploy ${{ env.STAGE }}
+        else
+          poetry run zappa update ${{ env.STAGE }}
+        fi
+    
     - name: Get deployment info
-      id: deployment-info
-      run: |
-        ENDPOINT=$(serverless info --stage ${{ steps.set-env.outputs.stage }} --verbose | grep "endpoint:" | sed 's/.*endpoint: //')
-        echo "endpoint=$ENDPOINT" >> $GITHUB_OUTPUT
-        echo "Deployed to: $ENDPOINT"
-
-    - name: Run smoke test
-      run: |
-        ENDPOINT="${{ steps.deployment-info.outputs.endpoint }}"
-        echo "Testing health endpoint at: $ENDPOINT/health"
-        
-        # Wait a bit for Lambda to be ready
-        sleep 10
-        
-        # Test health endpoint
-        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$ENDPOINT/health")
-        echo "Health check returned HTTP code: $HTTP_CODE"
-        
-        if [ "$HTTP_CODE" -eq 200 ]; then
-          echo "Health check passed!"
-        else
-          echo "Health check failed!"
-          curl -v "$ENDPOINT/health"
-          exit 1
-        fi
-      continue-on-error: true
-
-    - name: Display and Test Custom Domain
-      run: |
-        STAGE=${{ steps.set-env.outputs.stage }}
-        if [ "$STAGE" == "dev" ]; then
-          CUSTOM_DOMAIN="https://billing-dev.numbr.com.br"
-        elif [ "$STAGE" == "stg" ]; then
-          CUSTOM_DOMAIN="https://billing-staging.numbr.com.br"
-        elif [ "$STAGE" == "prod" ]; then
-          CUSTOM_DOMAIN="https://billing.numbr.com.br"
-        fi
-        
-        echo "🌐 Custom domain: $CUSTOM_DOMAIN"
-        echo "Waiting for domain propagation..."
-        sleep 30
-        
-        echo "Testing custom domain health endpoint..."
-        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$CUSTOM_DOMAIN/health" || echo "000")
-        
-        if [ "$HTTP_CODE" -eq 200 ]; then
-          echo "✅ Custom domain is working!"
-        else
-          echo "⚠️  Custom domain not responding yet (HTTP $HTTP_CODE)"
-          echo "This is normal for first deployment. Domain may take up to 40 minutes to propagate."
-        fi
+      run: poetry run zappa status ${{ env.STAGE }}

@@ -67,17 +67,25 @@ poetry run mypy src/
 
 ### Deployment
 ```bash
-# Deploy to AWS Lambda
-npx serverless deploy --stage dev
+# Deploy to AWS Lambda with Zappa
+poetry run zappa deploy dev  # First deployment
+poetry run zappa update dev  # Update existing deployment
 
 # Deploy to specific stage
-npx serverless deploy --stage prod
+poetry run zappa deploy staging
+poetry run zappa deploy prod
 
 # View deployment info
-npx serverless info --stage dev
+poetry run zappa status dev
 
 # View logs
-npx serverless logs -f api --stage dev
+poetry run zappa tail dev
+
+# Rollback deployment
+poetry run zappa rollback dev -n 1
+
+# Undeploy
+poetry run zappa undeploy dev
 ```
 
 ## Architecture
@@ -167,66 +175,91 @@ The app uses different `.env` files:
 - Webhook endpoint `/webhooks/asaas` must be accessible to Asaas servers
 - Environment variables loaded from `.env` file in development
 
-## AWS Lambda Deployment
+## AWS Lambda Deployment with Zappa
 
-The project is deployed as a serverless application on AWS Lambda:
+The project is deployed as a serverless application on AWS Lambda using Zappa:
 
 ### Key Files for Lambda
-- `src/lambda_handler.py` - Mangum adapter for Lambda
-- `serverless.yml` - Serverless Framework configuration
+- `src/handler.py` - Mangum adapter for Lambda
+- `zappa_settings.json` - Zappa configuration for all environments
 - `.github/workflows/deploy.yml` - Automated deployment pipeline
 
 ### Deployment Configuration
-- **Service Name**: numbr-billing (without environment suffix)
+- **Service Name**: numbr-billing
 - **Stages**: dev, staging, prod
 - **Region**: us-east-1
 - **Runtime**: Python 3.11
-- **Architecture**: x86_64
+- **Handler**: src.handler.handler
 
 ### Deployment Flow
 1. Push to branch (develop/staging/main) triggers GitHub Actions
-2. Tests run first, then dependencies are packaged
-3. Docker is used in CI/CD to compile binary dependencies for Lambda
-4. Serverless Framework deploys the stack
-5. Lambda function and layer are updated with new code
+2. Poetry installs dependencies
+3. Zappa packages the application with all dependencies
+4. Deployment creates/updates Lambda function and API Gateway
+5. Database migrations run automatically
 
 ### Lambda Endpoints
-- **API Gateway**: https://vuoxz3psy4.execute-api.us-east-1.amazonaws.com/{stage}
-- **Health Check**: GET /health
-- **API Documentation**: GET /docs
-- **Checkout API**: POST /api/checkout/start
-- **Webhook**: POST /webhooks/asaas
-
-### Lambda Considerations
-- Database connections use connection pooling appropriate for Lambda
-- Binary dependencies must be compiled for Linux x86_64
-- Cold starts are minimized with proper memory allocation (1024MB)
-- VPC configuration required for RDS access
-- Environment variables passed through serverless.yml
-
-### Deployment Issues & Solutions
-
-#### Docker on macOS
-When deploying from macOS, Docker permission issues may prevent proper compilation of Python dependencies. Solutions:
-1. Use GitHub Actions for deployment (recommended)
-2. Enable dockerizePip in serverless.yml only in CI/CD environment
-3. Manual deployment script available in project history if needed
-
-#### Database URL Format
-The GitHub repository variables store DATABASE_URL with `mysql://` protocol, but Python SQLAlchemy requires `mysql+pymysql://`. The GitHub Actions workflow automatically converts the format during deployment.
-
-#### AWS Profile
-- Local deployment uses `--aws-profile numbr`
-- GitHub Actions uses AWS credentials configured as secrets
-- The serverless.yml has `profile: ${opt:aws-profile, ''}` to support both scenarios
-
-#### Custom Domains
-The following custom domains are configured and working:
+Zappa automatically generates API Gateway endpoints:
 - **Development**: https://billing-dev.numbr.com.br
 - **Staging**: https://billing-staging.numbr.com.br  
 - **Production**: https://billing.numbr.com.br
 
-Domain creation is handled automatically by the deployment process using serverless-domain-manager plugin.
+### API Endpoints
+- **Health Check**: GET /health
+- **API Documentation**: GET /docs
+- **Admin Panel**: GET /admin
+- **Checkout API**: POST /api/checkout/start
+- **Webhook**: POST /webhooks/asaas
+
+### Lambda Considerations
+- Database connections use async SQLAlchemy with proper pooling
+- Memory allocation: 1024MB (dev/staging), 2048MB (prod)
+- Timeout: 30 seconds
+- Keep warm enabled in production
+- VPC configuration handled by Zappa settings
+
+### Local Deployment
+```bash
+# First time deployment
+poetry run zappa deploy dev
+
+# Update existing deployment
+poetry run zappa update dev
+
+# Check deployment status
+poetry run zappa status dev
+
+# View real-time logs
+poetry run zappa tail dev
+```
+
+### Environment Variables
+Zappa manages environment variables through:
+1. `zappa_settings.json` for static variables
+2. GitHub Actions for secrets (passed during deployment)
+3. AWS Lambda environment variables
+
+### Database URL Format
+The GitHub repository variables store DATABASE_URL with `mysql://` protocol, but Python SQLAlchemy requires `mysql+pymysql://`. The GitHub Actions workflow automatically converts the format during deployment.
+
+### AWS Profile
+- Local deployment uses profile `numbr` from zappa_settings.json
+- GitHub Actions uses AWS credentials configured as secrets
+- No manual AWS configuration needed
+
+### Custom Domains
+Domains are configured in `zappa_settings.json` and managed by Zappa:
+- **Development**: https://billing-dev.numbr.com.br
+- **Staging**: https://billing-staging.numbr.com.br  
+- **Production**: https://billing.numbr.com.br
+
+### Zappa Advantages
+- Simpler configuration than Serverless Framework
+- Native Python packaging without Docker issues
+- Built-in support for Django/Flask/FastAPI
+- Automatic API Gateway configuration
+- Easy rollback capabilities
+- Direct integration with Poetry (no requirements.txt needed)
 
 ## API Endpoints
 
@@ -294,13 +327,12 @@ The project includes a comprehensive admin panel powered by SQLAdmin with JWT-ba
 - Password: `AdminNumbr2025!`
 - **Important**: Change this password after first login!
 
-### Admin Panel Architecture (Lambda Compatible)
-The admin panel uses JWT tokens stored in HTTP-only cookies instead of server sessions:
-- Authentication backend: `src/admin/sqladmin_lambda.py`
-- Cookie middleware: `src/admin/cookie_middleware.py`
+### Admin Panel Architecture
+The admin panel uses standard SQLAdmin authentication with session-based authentication:
+- Authentication backend: `src/admin/sqladmin_config.py`
+- Session storage: In-memory (development) or Redis (production)
 - Secure cookies only in production (HTTPS)
-- Token expiration: 15 minutes (configurable)
-- Session tracking in database for revocation
+- Session tracking in database for security
 
 ### Admin Models (`src/models/admin_user.py`)
 - **AdminUser**: User accounts with email/password authentication
@@ -351,5 +383,6 @@ poetry run python scripts/seed_admin.py
 
 - Sempre atualize os testes em qualquer alteração do codigo
 - Use Poetry para gerenciar dependências
-- Nunca faça deploy manual do macOS devido a problemas de compatibilidade binária
+- Deploy local com Zappa funciona perfeitamente no macOS
 - Sempre teste os endpoints após o deploy
+- Use `zappa tail` para monitorar logs em tempo real

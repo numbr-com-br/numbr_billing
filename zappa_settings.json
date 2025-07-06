@@ -1,0 +1,57 @@
+{
+    "dev": {
+        "app_function": "src.handler.handler",
+        "aws_region": "us-east-1",
+        "profile_name": "numbr",
+        "project_name": "numbr-billing",
+        "runtime": "python3.11",
+        "s3_bucket": "numbr-billing-zappa-deployments-dev",
+        "keep_warm": false,
+        "memory_size": 1024,
+        "timeout_seconds": 30,
+        "environment_variables": {
+            "ENVIRONMENT": "dev",
+            "IS_LAMBDA": "true"
+        },
+        "vpc_config": {
+            "SubnetIds": [],
+            "SecurityGroupIds": []
+        },
+        "exclude": [
+            "*.pyc",
+            "*.pyo",
+            "*.git*",
+            "*.pytest_cache*",
+            "__pycache__",
+            ".localfiles",
+            "tests",
+            ".env*",
+            "*.md",
+            "*.txt",
+            ".github"
+        ],
+        "slim_handler": true,
+        "use_precompiled_packages": true,
+        "manage_roles": false,
+        "apigateway_description": "Numbr Billing API",
+        "domain": "billing-dev.numbr.com.br"
+    },
+    "staging": {
+        "extends": "dev",
+        "s3_bucket": "numbr-billing-zappa-deployments-staging",
+        "environment_variables": {
+            "ENVIRONMENT": "staging"
+        },
+        "domain": "billing-staging.numbr.com.br"
+    },
+    "prod": {
+        "extends": "dev",
+        "s3_bucket": "numbr-billing-zappa-deployments-prod",
+        "keep_warm": true,
+        "memory_size": 2048,
+        "environment_variables": {
+            "ENVIRONMENT": "prod"
+        },
+        "domain": "billing.numbr.com.br"
+    }
+}
