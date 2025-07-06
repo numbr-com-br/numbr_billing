@@ -24,15 +24,11 @@ from src.main import app
 from src.database import get_db
 
 
-@pytest.fixture(scope="session")
-def event_loop():
-    """Create an instance of the default event loop for the test session."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+# Remove custom event_loop fixture to avoid conflicts with pytest-asyncio
+# pytest-asyncio will provide the event loop automatically
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="function")
 async def engine():
     """Create test database engine."""
     test_db_url = os.environ["DATABASE_URL"].replace("mysql+pymysql://", "mysql+aiomysql://")
