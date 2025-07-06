@@ -1,14 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, and_
+from sqlalchemy.orm import selectinload
 from typing import List
 from datetime import datetime, timedelta
 from decimal import Decimal
 
 from src.database import get_db
-from src.models import Customer, Plan, Addon, Subscription, SubscriptionAddon
+from src.models import Customer, Plan, Addon, Subscription, SubscriptionAddon, PlanPricing, RevenueRange
 from src.schemas.checkout import (
-    CheckoutRequest, CheckoutResponse, PlanResponse, AddonResponse
+    CheckoutRequest, CheckoutResponse, PlanResponse, AddonResponse, PlanPricingResponse, RevenueRangeResponse
 )
 from src.services.asaas import asaas_service
 from src.enums import SubscriptionStatus
@@ -32,13 +33,40 @@ async def start_checkout(
         result = await db.execute(
             select(Addon).where(
                 Addon.id.in_(request.addon_ids),
-                Addon.is_active == True
+                Addon.is_active.is_(True)
             )
         )
         addons = result.scalars().all()
     
+    # Get plan price based on customer revenue
+    plan_price = Decimal("0")
+    if request.customer.annual_revenue is not None:
+        # Find the appropriate revenue range for the customer
+        query = select(PlanPricing).join(RevenueRange).where(
+            and_(
+                PlanPricing.plan_id == plan.id,
+                RevenueRange.min_revenue <= request.customer.annual_revenue,
+                (RevenueRange.max_revenue >= request.customer.annual_revenue) | (RevenueRange.max_revenue.is_(None))
+            )
+        )
+        result = await db.execute(query)
+        plan_pricing = result.scalar_one_or_none()
+        
+        if not plan_pricing:
+            raise HTTPException(
+                status_code=400, 
+                detail="No pricing available for the specified revenue range"
+            )
+        
+        plan_price = Decimal(str(plan_pricing.price))
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Annual revenue is required for pricing calculation"
+        )
+    
     # Calculate total price
-    total_price = Decimal(str(plan.price))
+    total_price = plan_price
     for addon in addons:
         total_price += Decimal(str(addon.price))
     
@@ -55,13 +83,16 @@ async def start_checkout(
             customer.cpf_cnpj = request.customer.cpf_cnpj
         if request.customer.phone:
             customer.phone = request.customer.phone
+        if request.customer.annual_revenue:
+            customer.annual_revenue = request.customer.annual_revenue
     else:
         # Create new customer
         customer = Customer(
             name=request.customer.name,
             email=request.customer.email,
             cpf_cnpj=request.customer.cpf_cnpj,
-            phone=request.customer.phone
+            phone=request.customer.phone,
+            annual_revenue=request.customer.annual_revenue
         )
         db.add(customer)
     
@@ -127,27 +158,41 @@ async def start_checkout(
 @router.get("/plans", response_model=List[PlanResponse])
 async def get_plans(db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(Plan).where(Plan.is_active == True).order_by(Plan.price)
+        select(Plan)
+        .options(selectinload(Plan.plan_pricings).selectinload(PlanPricing.revenue_range))
+        .where(Plan.is_active.is_(True))
+        .order_by(Plan.name)
     )
     plans = result.scalars().all()
     
-    return [
-        PlanResponse(
+    plan_responses = []
+    for plan in plans:
+        pricing_list = []
+        for pp in sorted(plan.plan_pricings, key=lambda x: x.revenue_range.sort_order):
+            pricing_list.append(PlanPricingResponse(
+                revenue_range_id=pp.revenue_range_id,
+                revenue_range_name=pp.revenue_range.name,
+                min_revenue=pp.revenue_range.min_revenue,
+                max_revenue=pp.revenue_range.max_revenue,
+                price=pp.price
+            ))
+        
+        plan_responses.append(PlanResponse(
             id=plan.id,
             name=plan.name,
             description=plan.description,
-            price=plan.price,
             cycle=plan.cycle,
-            features=plan.features or []
-        )
-        for plan in plans
-    ]
+            features=plan.features or [],
+            pricing=pricing_list
+        ))
+    
+    return plan_responses
 
 
 @router.get("/addons", response_model=List[AddonResponse])
 async def get_addons(db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(Addon).where(Addon.is_active == True).order_by(Addon.price)
+        select(Addon).where(Addon.is_active.is_(True)).order_by(Addon.price)
     )
     addons = result.scalars().all()
     
@@ -160,4 +205,23 @@ async def get_addons(db: AsyncSession = Depends(get_db)):
             type=addon.type
         )
         for addon in addons
+    ]
+
+
+@router.get("/revenue-ranges", response_model=List[RevenueRangeResponse])
+async def get_revenue_ranges(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(RevenueRange).order_by(RevenueRange.sort_order)
+    )
+    ranges = result.scalars().all()
+    
+    return [
+        RevenueRangeResponse(
+            id=range.id,
+            name=range.name,
+            min_revenue=range.min_revenue,
+            max_revenue=range.max_revenue,
+            sort_order=range.sort_order
+        )
+        for range in ranges
     ]

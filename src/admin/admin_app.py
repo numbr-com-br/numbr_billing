@@ -1,5 +1,4 @@
 from sqladmin import Admin
-from starlette.middleware.sessions import SessionMiddleware
 from src.admin.sqladmin_config import AdminAuthBackend
 from src.admin.model_views import admin_views
 from src.config import settings

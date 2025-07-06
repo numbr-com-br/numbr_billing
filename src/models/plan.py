@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Text, Numeric, Enum, Boolean, DateTime, JSON
+from sqlalchemy import Column, String, Text, Enum, Boolean, DateTime, JSON
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from src.database import Base
@@ -12,7 +12,6 @@ class Plan(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    price = Column(Numeric(10, 2), nullable=False)
     cycle = Column(Enum(BillingCycle), nullable=False)
     features = Column(JSON, nullable=False, default=list)
     is_active = Column(Boolean, nullable=False, default=True)
@@ -20,3 +19,4 @@ class Plan(Base):
     updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
     
     subscriptions = relationship("Subscription", back_populates="plan")
+    plan_pricings = relationship("PlanPricing", back_populates="plan", cascade="all, delete-orphan")

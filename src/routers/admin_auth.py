@@ -9,13 +9,12 @@ from typing import List, Optional, Annotated
 from src.database import get_db as get_session
 from src.models.admin_user import AdminUser, AdminSession
 from src.schemas.admin_auth import (
-    LoginRequest, TokenResponse, RefreshTokenRequest, 
-    AdminUserResponse, ChangePasswordRequest, SessionResponse
+    LoginRequest, AdminUserResponse, ChangePasswordRequest, SessionResponse
 )
 from src.admin.auth import (
     authenticate_user, create_access_token, create_refresh_token,
     get_current_user, verify_password, get_password_hash,
-    create_session_record, revoke_token, ACCESS_TOKEN_EXPIRE_MINUTES
+    ACCESS_TOKEN_EXPIRE_MINUTES
 )
 
 router = APIRouter(prefix="/api/admin/auth", tags=["Admin Authentication"])

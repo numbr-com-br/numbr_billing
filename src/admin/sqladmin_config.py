@@ -12,7 +12,6 @@ from src.admin.auth import (
     create_session_record
 )
 from src.database import AsyncSessionLocal
-from src.models.admin_user import AdminUser
 
 
 class AdminAuthBackend(AuthenticationBackend):

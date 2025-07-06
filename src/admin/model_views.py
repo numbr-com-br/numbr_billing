@@ -1,9 +1,7 @@
-from sqladmin import ModelView
 from src.admin.sqladmin_config import SecureModelView
 from src.admin.permissions import Permission
 from src.models import (
-    Customer, Plan, Addon, Subscription, SubscriptionAddon,
-    Payment, WebhookLog, AdminUser, AdminRole
+    Customer, Plan, Addon, Subscription, Payment, WebhookLog, AdminUser, AdminRole, RevenueRange, PlanPricing
 )
 
 
@@ -55,16 +53,15 @@ class PlanAdmin(SecureModelView, model=Plan):
     column_list = [
         Plan.id,
         Plan.name,
-        Plan.price,
         Plan.cycle,
         Plan.is_active,
         Plan.created_at
     ]
     column_searchable_list = [Plan.name]
-    column_sortable_list = [Plan.name, Plan.price, Plan.created_at]
+    column_sortable_list = [Plan.name, Plan.created_at]
     column_default_sort = [(Plan.created_at, True)]
     
-    form_excluded_columns = [Plan.subscriptions]
+    form_excluded_columns = [Plan.subscriptions, Plan.plan_pricings]
     
     # Custom form configuration for JSON field
     form_args = {
@@ -281,6 +278,49 @@ class AdminRoleAdmin(SecureModelView, model=AdminRole):
         return True
 
 
+class RevenueRangeAdmin(SecureModelView, model=RevenueRange):
+    """Revenue range admin view"""
+    name = "Revenue Range"
+    name_plural = "Revenue Ranges"
+    icon = "fa-solid fa-chart-line"
+    
+    required_permissions = [Permission.PLANS_READ]
+    
+    column_list = [
+        RevenueRange.id,
+        RevenueRange.name,
+        RevenueRange.min_revenue,
+        RevenueRange.max_revenue,
+        RevenueRange.sort_order,
+        RevenueRange.created_at
+    ]
+    column_searchable_list = [RevenueRange.name]
+    column_sortable_list = [RevenueRange.sort_order, RevenueRange.min_revenue]
+    column_default_sort = [(RevenueRange.sort_order, False)]
+    
+    form_excluded_columns = [RevenueRange.plan_pricings]
+
+
+class PlanPricingAdmin(SecureModelView, model=PlanPricing):
+    """Plan pricing admin view"""
+    name = "Plan Pricing"
+    name_plural = "Plan Pricing"
+    icon = "fa-solid fa-dollar-sign"
+    
+    required_permissions = [Permission.PLANS_READ]
+    
+    column_list = [
+        PlanPricing.id,
+        PlanPricing.plan,
+        PlanPricing.revenue_range,
+        PlanPricing.price,
+        PlanPricing.created_at
+    ]
+    column_filters = [PlanPricing.plan, PlanPricing.revenue_range]
+    column_sortable_list = [PlanPricing.price, PlanPricing.created_at]
+    column_default_sort = [(PlanPricing.created_at, True)]
+
+
 # Export all admin views
 admin_views = [
     CustomerAdmin,
@@ -290,5 +330,7 @@ admin_views = [
     PaymentAdmin,
     WebhookLogAdmin,
     AdminUserAdmin,
-    AdminRoleAdmin
+    AdminRoleAdmin,
+    RevenueRangeAdmin,
+    PlanPricingAdmin
 ]

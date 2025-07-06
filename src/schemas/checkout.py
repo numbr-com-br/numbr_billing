@@ -10,6 +10,7 @@ class CustomerRequest(BaseModel):
     email: str
     cpf_cnpj: Optional[str] = None
     phone: Optional[str] = None
+    annual_revenue: Optional[Decimal] = None
 
 
 class CheckoutRequest(BaseModel):
@@ -25,13 +26,29 @@ class CheckoutResponse(BaseModel):
     total_price: Decimal
 
 
+class RevenueRangeResponse(BaseModel):
+    id: str
+    name: str
+    min_revenue: Decimal
+    max_revenue: Optional[Decimal]
+    sort_order: int
+
+
+class PlanPricingResponse(BaseModel):
+    revenue_range_id: str
+    revenue_range_name: str
+    min_revenue: Decimal
+    max_revenue: Optional[Decimal]
+    price: Decimal
+
+
 class PlanResponse(BaseModel):
     id: str
     name: str
     description: Optional[str]
-    price: Decimal
     cycle: BillingCycle
     features: List[str]
+    pricing: List[PlanPricingResponse]
 
 
 class AddonResponse(BaseModel):

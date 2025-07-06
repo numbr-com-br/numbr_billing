@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime
+from sqlalchemy import Column, String, DateTime, Numeric
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from src.database import Base
@@ -13,6 +13,7 @@ class Customer(Base):
     email = Column(String(255), nullable=False, unique=True)
     cpf_cnpj = Column(String(255), nullable=True)
     phone = Column(String(255), nullable=True)
+    annual_revenue = Column(Numeric(15, 2), nullable=True)
     asaas_customer_id = Column(String(255), nullable=True)
     created_at = Column(DateTime, nullable=False, server_default=func.now())
     updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())

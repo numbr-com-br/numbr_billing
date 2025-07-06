@@ -30,6 +30,12 @@ poetry run alembic downgrade -1
 
 # Seed admin data
 poetry run python scripts/seed_admin.py
+
+# Seed plans (required before pricing)
+poetry run python scripts/seed_plans.py
+
+# Seed revenue ranges and pricing
+poetry run python scripts/seed_pricing.py
 ```
 
 ### Testing
@@ -75,6 +81,24 @@ npx serverless logs -f api --stage dev
 ```
 
 ## Architecture
+
+### Pricing Structure
+
+The billing system supports dynamic pricing based on customer annual revenue:
+
+1. **Revenue Ranges** (`src/models/revenue_range.py`)
+   - Define different company size tiers (Microempresa, Pequena Empresa, etc.)
+   - Each range has min/max revenue thresholds
+   - Sorted by `sort_order` for proper display
+
+2. **Plan Pricing** (`src/models/plan_pricing.py`)
+   - Links plans to revenue ranges with specific prices
+   - Each plan can have different prices per revenue range
+   - Unique constraint ensures one price per plan/range combination
+
+3. **Customer Revenue** (`src/models/customer.py`)
+   - `annual_revenue` field stores customer's yearly revenue
+   - Required during checkout to determine applicable pricing
 
 ### Core Services Integration
 
@@ -210,8 +234,29 @@ Domain creation is handled automatically by the deployment process using serverl
 - `GET /health` - Returns server status and timestamp
 
 ### Checkout API
-- `GET /api/checkout/plans` - List all available plans
+- `GET /api/checkout/plans` - List all available plans with pricing tiers
+  ```json
+  [
+    {
+      "id": "uuid",
+      "name": "Professional",
+      "description": "Para empresas em crescimento",
+      "cycle": "MONTHLY",
+      "features": ["Feature 1", "Feature 2"],
+      "pricing": [
+        {
+          "revenue_range_id": "uuid",
+          "revenue_range_name": "Microempresa",
+          "min_revenue": "0.00",
+          "max_revenue": "360000.00",
+          "price": "99.90"
+        }
+      ]
+    }
+  ]
+  ```
 - `GET /api/checkout/addons` - List all available addons
+- `GET /api/checkout/revenue-ranges` - List all revenue ranges
 - `POST /api/checkout/start` - Create checkout session
   ```json
   {
@@ -219,7 +264,8 @@ Domain creation is handled automatically by the deployment process using serverl
       "name": "string",
       "email": "string",
       "cpf_cnpj": "string",
-      "phone": "string"
+      "phone": "string",
+      "annual_revenue": "decimal"  // Required for pricing calculation
     },
     "plan_id": "string",
     "addon_ids": ["string"],

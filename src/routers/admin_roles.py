@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, or_, exists
+from sqlalchemy import select, func, or_, exists
 from typing import List, Optional
 from datetime import datetime
 
 from src.database import get_db as get_session
 from src.models.admin_user import AdminRole, AdminUser, admin_user_roles
 from src.schemas.admin_auth import AdminRoleCreate, AdminRoleUpdate, AdminRoleResponse
-from src.admin.auth import get_current_user, require_permission
+from src.admin.auth import require_permission
 from src.admin.permissions import Permission, PERMISSION_DESCRIPTIONS, get_permission_groups
 
 router = APIRouter(prefix="/api/admin/roles", tags=["Admin Roles"])
