@@ -294,6 +294,14 @@ The project includes a comprehensive admin panel powered by SQLAdmin with JWT-ba
 - Password: `AdminNumbr2025!`
 - **Important**: Change this password after first login!
 
+### Admin Panel Architecture (Lambda Compatible)
+The admin panel uses JWT tokens stored in HTTP-only cookies instead of server sessions:
+- Authentication backend: `src/admin/sqladmin_lambda.py`
+- Cookie middleware: `src/admin/cookie_middleware.py`
+- Secure cookies only in production (HTTPS)
+- Token expiration: 15 minutes (configurable)
+- Session tracking in database for revocation
+
 ### Admin Models (`src/models/admin_user.py`)
 - **AdminUser**: User accounts with email/password authentication
 - **AdminRole**: Roles with customizable permissions
