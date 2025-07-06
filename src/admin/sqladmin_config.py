@@ -18,7 +18,7 @@ from src.config import settings
 
 # Cookie settings for Lambda compatibility
 COOKIE_NAME = "numbr_admin_token"
-COOKIE_SECURE = settings.environment == "production"  # Only HTTPS in production
+COOKIE_SECURE = settings.environment not in ["dev", "stg", "staging", "development", "local"]  # Only HTTPS in production
 COOKIE_HTTPONLY = True
 COOKIE_SAMESITE = "lax"
 COOKIE_MAX_AGE = 60 * ACCESS_TOKEN_EXPIRE_MINUTES  # Same as token expiration

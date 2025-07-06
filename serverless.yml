@@ -21,6 +21,7 @@ provider:
     JWT_SECRET_KEY: ${env:JWT_SECRET_KEY}
     PORT: 3000
     IS_LAMBDA: true
+    ENVIRONMENT: ${self:provider.stage}
   vpc:
     securityGroupIds:
       - sg-07c0789892e7fbb93
