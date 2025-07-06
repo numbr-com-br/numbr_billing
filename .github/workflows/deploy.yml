@@ -136,6 +136,12 @@ jobs:
         # Convert mysql:// to mysql+pymysql:// for SQLAlchemy
         DB_URL_CONVERTED=$(echo "$DB_URL" | sed 's|mysql://|mysql+pymysql://|')
         echo "DATABASE_URL=$DB_URL_CONVERTED" >> $GITHUB_ENV
+        echo "ASAAS_API_KEY=$ASAAS_KEY" >> $GITHUB_ENV
+        echo "ASAAS_API_URL=https://sandbox.asaas.com/api/v3" >> $GITHUB_ENV
+        echo "ASAAS_WEBHOOK_TOKEN=${{ vars.ASAAS_WEBHOOK_TOKEN }}" >> $GITHUB_ENV
+        echo "JWT_SECRET_KEY=test_secret_key_for_jwt_authentication" >> $GITHUB_ENV
+        echo "VPC_SUBNET_IDS=${{ vars.VPC_SUBNET_IDS }}" >> $GITHUB_ENV
+        echo "VPC_SECURITY_GROUP_IDS=${{ vars.VPC_SECURITY_GROUP_IDS }}" >> $GITHUB_ENV
         
         # Export environment variables for the update script
         export DATABASE_URL="$DB_URL_CONVERTED"
