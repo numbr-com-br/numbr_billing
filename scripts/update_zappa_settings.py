@@ -39,8 +39,17 @@ def update_zappa_settings(stage: str):
         
         # Remove profile_name in CI/CD environment (GitHub Actions)
         if os.environ.get("CI"):
+            # Remove from current stage
             settings[stage].pop("profile_name", None)
-            print("Removed profile_name for CI/CD deployment")
+            
+            # If stage extends another config, remove from base config too
+            if "extends" in settings[stage]:
+                base_stage = settings[stage]["extends"]
+                if base_stage in settings:
+                    settings[base_stage].pop("profile_name", None)
+                    print(f"Removed profile_name from base stage: {base_stage}")
+            
+            print(f"Removed profile_name for CI/CD deployment (stage: {stage})")
         
         # Ensure VPC config for RDS access if DATABASE_URL is provided
         if env_vars.get("DATABASE_URL"):
