@@ -80,6 +80,14 @@ def create_app():
             "timestamp": datetime.now().isoformat()
         }
     
+    # Simple test endpoint
+    @app.route('/test')
+    def test():
+        return {
+            "message": "Flask app is running!",
+            "environment": os.environ.get("ENVIRONMENT", "unknown")
+        }
+    
     # Create tables on startup
     with app.app_context():
         Base.metadata.create_all(bind=engine)
