@@ -166,9 +166,7 @@ def init_admin(app):
         app,
         name='Numbr Billing Admin',
         template_mode='bootstrap4',
-        index_view=AuthenticatedAdminIndexView(),
-        base_template='admin/custom_base.html',
-        static_url_path=f'{base_url}/static'
+        index_view=AuthenticatedAdminIndexView()
     )
     
     # Use a context manager for db_session

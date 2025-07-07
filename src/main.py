@@ -105,14 +105,11 @@ def create_app():
     # Diagnostic endpoint
     @app.route('/diag')
     def diag():
-        import sys
         return {
             "message": "Diagnostic info",
-            "python_version": sys.version,
-            "flask_version": Flask.__version__,
-            "is_lambda": app.config.get('IS_LAMBDA', False),
+            "is_lambda": str(app.config.get('IS_LAMBDA', False)),
             "environment": os.environ.get("ENVIRONMENT", "unknown"),
-            "admin_initialized": hasattr(app, 'extensions') and 'admin' in app.extensions
+            "skip_admin": os.environ.get("SKIP_FLASK_ADMIN", "false")
         }
     
     # Create tables on startup
