@@ -86,6 +86,15 @@ def create_app():
             traceback.print_exc()
             # Continue without admin panel in case of initialization error
     
+    # Root endpoint for Zappa status check
+    @app.route('/')
+    def index():
+        return {
+            "message": "Numbr Billing API",
+            "version": "1.0.0",
+            "docs": "/docs"
+        }
+    
     # Health check endpoint
     @app.route('/health')
     def health():
@@ -110,6 +119,24 @@ def create_app():
             "is_lambda": str(app.config.get('IS_LAMBDA', False)),
             "environment": os.environ.get("ENVIRONMENT", "unknown"),
             "skip_admin": os.environ.get("SKIP_FLASK_ADMIN", "false")
+        }
+    
+    # API Documentation
+    @app.route('/docs')
+    def docs():
+        return {
+            "openapi": "3.0.0",
+            "info": {
+                "title": "Numbr Billing API",
+                "version": "1.0.0"
+            },
+            "paths": {
+                "/": {"get": {"summary": "API Info"}},
+                "/health": {"get": {"summary": "Health Check"}},
+                "/api/checkout/plans": {"get": {"summary": "List Plans"}},
+                "/api/checkout/start": {"post": {"summary": "Start Checkout"}},
+                "/admin/": {"get": {"summary": "Admin Panel (requires auth)"}}
+            }
         }
     
     # Create tables on startup
