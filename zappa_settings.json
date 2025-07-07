@@ -12,6 +12,7 @@
         "environment_variables": {
             "ENVIRONMENT": "dev",
             "IS_LAMBDA": "true",
+            "SKIP_FLASK_ADMIN": "true",
             "DATABASE_URL": "mysql+pymysql://numbr_billing_dev:NbD3v%232024%24Sec%21@wink-app.cuiqag6yzukq.us-east-1.rds.amazonaws.com:3306/numbr_billing_dev",
             "ASAAS_API_KEY": "$aact_hmlg_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OmIwNjFhYzg1LWRlMjktNDZlMi04ZGNiLTE3NjhmNTMwYmQ2MTo6JGFhY2hfNDUyMGQ1ZWYtNTRkNy00NjFlLTg5YmUtYTQzN2FlZTcyOTBh",
             "ASAAS_API_URL": "https://sandbox.asaas.com/api/v3",

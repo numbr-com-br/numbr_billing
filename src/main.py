@@ -76,11 +76,15 @@ def create_app():
     app.register_blueprint(create_admin_roles_blueprint(), url_prefix="/api/admin/roles")
     
     # Initialize Flask-Admin with error handling for Lambda
-    try:
-        init_admin(app)
-    except Exception as e:
-        print(f"Warning: Flask-Admin initialization failed: {e}")
-        # Continue without admin panel in case of initialization error
+    # Skip Flask-Admin in Lambda if causing issues
+    if not os.environ.get('SKIP_FLASK_ADMIN'):
+        try:
+            init_admin(app)
+        except Exception as e:
+            print(f"Warning: Flask-Admin initialization failed: {e}")
+            import traceback
+            traceback.print_exc()
+            # Continue without admin panel in case of initialization error
     
     # Health check endpoint
     @app.route('/health')
@@ -96,6 +100,19 @@ def create_app():
         return {
             "message": "Flask app is running!",
             "environment": os.environ.get("ENVIRONMENT", "unknown")
+        }
+    
+    # Diagnostic endpoint
+    @app.route('/diag')
+    def diag():
+        import sys
+        return {
+            "message": "Diagnostic info",
+            "python_version": sys.version,
+            "flask_version": Flask.__version__,
+            "is_lambda": app.config.get('IS_LAMBDA', False),
+            "environment": os.environ.get("ENVIRONMENT", "unknown"),
+            "admin_initialized": hasattr(app, 'extensions') and 'admin' in app.extensions
         }
     
     # Create tables on startup
