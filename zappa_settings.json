@@ -1,21 +1,22 @@
 {
     "dev": {
-        "app_function": "src.handler.handler",
+        "app_function": "src.main.app",
         "aws_region": "us-east-1",
         "profile_name": "numbr",
         "project_name": "numbr-billing",
         "runtime": "python3.11",
-        "s3_bucket": "numbr-billing-zappa-deployments-dev",
+        "s3_bucket": "numbr-billing-zappa-deployments",
         "keep_warm": false,
         "memory_size": 1024,
         "timeout_seconds": 30,
         "environment_variables": {
             "ENVIRONMENT": "dev",
-            "IS_LAMBDA": "true"
-        },
-        "vpc_config": {
-            "SubnetIds": [],
-            "SecurityGroupIds": []
+            "IS_LAMBDA": "true",
+            "DATABASE_URL": "mysql+pymysql://numbr_billing_dev:NbD3v%232024%24Sec%21@wink-app.cuiqag6yzukq.us-east-1.rds.amazonaws.com:3306/numbr_billing_dev",
+            "ASAAS_API_KEY": "$aact_hmlg_000MzkwODA2MWY2OGM3MWRlMDU2NWM3MzJlNzZmNGZhZGY6OmIwNjFhYzg1LWRlMjktNDZlMi04ZGNiLTE3NjhmNTMwYmQ2MTo6JGFhY2hfNDUyMGQ1ZWYtNTRkNy00NjFlLTg5YmUtYTQzN2FlZTcyOTBh",
+            "ASAAS_API_URL": "https://sandbox.asaas.com/api/v3",
+            "ASAAS_WEBHOOK_TOKEN": "1f2cba70c908547f28c718c5f0a785a2864304c03001454da4814842f786502a",
+            "JWT_SECRET_KEY": "numbr_billing_dev_jwt_secret_key_2025_secure_hash"
         },
         "exclude": [
             "*.pyc",
@@ -27,31 +28,46 @@
             "tests",
             ".env*",
             "*.md",
-            "*.txt",
-            ".github"
+            ".github",
+            "scripts",
+            ".ruff_cache",
+            "*.egg-info",
+            "dist",
+            "build",
+            ".venv",
+            "htmlcov",
+            ".coverage",
+            "*.log",
+            "*.bak",
+            ".DS_Store"
         ],
         "slim_handler": true,
         "use_precompiled_packages": true,
+        "disable_progress": true,
         "manage_roles": true,
         "apigateway_description": "Numbr Billing API",
-        "domain": "billing-dev.numbr.com.br"
+        "cors": true,
+        "cors_allow_headers": [
+            "Accept",
+            "Content-Type",
+            "X-Api-Key",
+            "Authorization"
+        ]
     },
     "staging": {
         "extends": "dev",
-        "s3_bucket": "numbr-billing-zappa-deployments-staging",
         "environment_variables": {
-            "ENVIRONMENT": "staging"
-        },
-        "domain": "billing-staging.numbr.com.br"
+            "ENVIRONMENT": "staging",
+            "IS_LAMBDA": "true"
+        }
     },
     "prod": {
         "extends": "dev",
-        "s3_bucket": "numbr-billing-zappa-deployments-prod",
         "keep_warm": true,
         "memory_size": 2048,
         "environment_variables": {
-            "ENVIRONMENT": "prod"
-        },
-        "domain": "billing.numbr.com.br"
+            "ENVIRONMENT": "prod",
+            "IS_LAMBDA": "true"
+        }
     }
 }

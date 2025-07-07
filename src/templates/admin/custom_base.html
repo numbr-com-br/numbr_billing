@@ -1,0 +1,62 @@
+{% extends 'admin/base.html' %}
+
+{% block head_css %}
+{{ super() }}
+<style>
+    .navbar-nav .user-info {
+        color: #fff;
+        padding: 0.5rem 1rem;
+    }
+    .admin-logo {
+        font-weight: bold;
+        font-size: 1.2rem;
+    }
+    .alert {
+        margin: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block brand %}
+<a class="navbar-brand admin-logo" href="{{ admin_base_url }}">
+    {{ admin_view.admin.name }}
+</a>
+{% endblock %}
+
+{% block access_control %}
+<ul class="navbar-nav ml-auto">
+    {% if current_user %}
+    <li class="nav-item">
+        <span class="navbar-text user-info">
+            <i class="fa fa-user"></i> {{ current_user.email }}
+        </span>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('admin_auth.logout') }}">
+            <i class="fa fa-sign-out"></i> Logout
+        </a>
+    </li>
+    {% else %}
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('admin_auth.login') }}">
+            <i class="fa fa-sign-in"></i> Login
+        </a>
+    </li>
+    {% endif %}
+</ul>
+{% endblock %}
+
+{% block messages %}
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+{% endblock %}

@@ -4,17 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Numbr Billing is a serverless SaaS billing API built with Python/FastAPI, deployed on AWS Lambda. It integrates with Asaas payment gateway for subscription management and payment processing.
+Numbr Billing is a serverless SaaS billing API built with Python/Flask, deployed on AWS Lambda using Zappa. It integrates with Asaas payment gateway for subscription management and payment processing.
 
 ## Key Commands
 
 ### Development
 ```bash
-# Local development with hot reload
-uvicorn src.main:app --reload --port 3000
+# Local development
+flask --app src.main:app run --port 3000
 
 # Run with poetry
-poetry run uvicorn src.main:app --reload --port 3000
+poetry run flask --app src.main:app run --port 3000
 ```
 
 ### Database
@@ -115,17 +115,17 @@ The application integrates these main systems:
 1. **Asaas Payment Gateway** (`src/services/asaas_service.py`)
    - Handles customer creation, subscription management, and payment processing
    - All Asaas API calls are centralized in this service
-   - Async HTTP client for optimal performance
+   - Synchronous HTTP client using httpx
    - Webhook events from Asaas are processed to update local database state
 
 2. **Database Models** (`src/models/`)
-   - SQLAlchemy 2.0 with async support
+   - SQLAlchemy 2.0 with synchronous sessions
    - MySQL database with proper relationships
    - Models: Customer, Subscription, Payment, Plan, Addon, WebhookLog
    - Automatic timestamp tracking with created_at/updated_at
 
 3. **API Endpoints** (`src/routers/`)
-   - FastAPI routers for modular endpoint organization
+   - Flask blueprints for modular endpoint organization
    - Checkout flow endpoints for transparent billing
    - Webhook processing for payment status updates
    - Health check and monitoring endpoints
@@ -148,30 +148,29 @@ The application integrates these main systems:
 The app uses different `.env` files:
 - `.env` - Development/production configuration
 - `.env.test` - Test database and mock API keys
-- Required: `DATABASE_URL`, `ASAAS_API_KEY`, `ASAAS_WEBHOOK_TOKEN`
+- Required: `DATABASE_URL`, `ASAAS_API_KEY`, `ASAAS_WEBHOOK_TOKEN`, `JWT_SECRET_KEY`
 
 ### Testing Strategy
 
 - **Unit Tests**: Mock external services using pytest fixtures
 - **Integration Tests**: Use test database with proper cleanup
-- **Async Testing**: Full async/await support in tests
 - **Test Coverage**: Maintain high coverage for critical paths
 
 ### Key Design Decisions
 
-1. **Async First**: All database operations and HTTP calls are async
-2. **Pydantic Models**: Strong typing and validation for all API inputs/outputs
-3. **SQLAlchemy 2.0**: Modern ORM with async support
-4. **Decimal Handling**: Prices stored as DECIMAL, handled properly in Python
-5. **Status Mapping**: Asaas payment statuses mapped to simplified internal enum
-6. **Error Handling**: Comprehensive error handling with proper HTTP status codes
+1. **Flask Framework**: Migrated from FastAPI to Flask for better Zappa compatibility
+2. **Synchronous Operations**: All database operations and HTTP calls are synchronous
+3. **Pydantic Models**: Strong typing and validation for all API inputs/outputs
+4. **SQLAlchemy 2.0**: Modern ORM with connection pooling
+5. **Decimal Handling**: Prices stored as DECIMAL, handled properly in Python
+6. **Status Mapping**: Asaas payment statuses mapped to simplified internal enum
+7. **Error Handling**: Comprehensive error handling with proper HTTP status codes
 
 ## Important Notes
 
 - Use Poetry for dependency management (`poetry install`)
 - Test database must exist before running tests
 - Asaas sandbox API for development, production API requires real credentials
-- API documentation available at `/docs` (Swagger UI) and `/redoc`
 - Webhook endpoint `/webhooks/asaas` must be accessible to Asaas servers
 - Environment variables loaded from `.env` file in development
 
@@ -180,16 +179,21 @@ The app uses different `.env` files:
 The project is deployed as a serverless application on AWS Lambda using Zappa:
 
 ### Key Files for Lambda
-- `src/handler.py` - Mangum adapter for Lambda
+- `src/handler.py` - Flask app export for Lambda
 - `zappa_settings.json` - Zappa configuration for all environments
 - `.github/workflows/deploy.yml` - Automated deployment pipeline
+
+### Key Files for Admin Panel
+- `src/admin/flask_admin.py` - Flask-Admin configuration and views
+- `src/templates/admin/login.html` - Custom login page
+- `src/templates/admin/custom_base.html` - Custom base template (optional)
 
 ### Deployment Configuration
 - **Service Name**: numbr-billing
 - **Stages**: dev, staging, prod
 - **Region**: us-east-1
 - **Runtime**: Python 3.11
-- **Handler**: src.handler.handler
+- **Handler**: src.main.app
 
 ### Deployment Flow
 1. Push to branch (develop/staging/main) triggers GitHub Actions
@@ -200,23 +204,21 @@ The project is deployed as a serverless application on AWS Lambda using Zappa:
 
 ### Lambda Endpoints
 Zappa automatically generates API Gateway endpoints:
-- **Development**: https://billing-dev.numbr.com.br
-- **Staging**: https://billing-staging.numbr.com.br  
-- **Production**: https://billing.numbr.com.br
+- **Development**: https://n61x7gkngj.execute-api.us-east-1.amazonaws.com/dev
+- **Staging**: TBD
+- **Production**: TBD
 
 ### API Endpoints
 - **Health Check**: GET /health
-- **API Documentation**: GET /docs
-- **Admin Panel**: GET /admin
 - **Checkout API**: POST /api/checkout/start
 - **Webhook**: POST /webhooks/asaas
 
 ### Lambda Considerations
-- Database connections use async SQLAlchemy with proper pooling
+- Database connections use SQLAlchemy with proper pooling
 - Memory allocation: 1024MB (dev/staging), 2048MB (prod)
 - Timeout: 30 seconds
 - Keep warm enabled in production
-- VPC configuration handled by Zappa settings
+- Slim handler enabled to reduce package size
 
 ### Local Deployment
 ```bash
@@ -248,15 +250,15 @@ The GitHub repository variables store DATABASE_URL with `mysql://` protocol, but
 - No manual AWS configuration needed
 
 ### Custom Domains
-Domains are configured in `zappa_settings.json` and managed by Zappa:
-- **Development**: https://billing-dev.numbr.com.br
-- **Staging**: https://billing-staging.numbr.com.br  
-- **Production**: https://billing.numbr.com.br
+Domains will be configured in `zappa_settings.json` and managed by Zappa:
+- **Development**: https://billing-dev.numbr.com.br (TBD)
+- **Staging**: https://billing-staging.numbr.com.br (TBD)
+- **Production**: https://billing.numbr.com.br (TBD)
 
 ### Zappa Advantages
-- Simpler configuration than Serverless Framework
+- Better compatibility with WSGI apps like Flask
 - Native Python packaging without Docker issues
-- Built-in support for Django/Flask/FastAPI
+- Built-in support for Flask
 - Automatic API Gateway configuration
 - Easy rollback capabilities
 - Direct integration with Poetry (no requirements.txt needed)
@@ -272,12 +274,10 @@ The deployment pipeline requires several secrets and variables configured in Git
 - `JWT_SECRET_KEY` - JWT token signing
 
 **Variables:**
-- `DATABASE_URL_[DEV|STAGING|PROD]` - MySQL connection strings
+- `DATABASE_URL` - MySQL connection string
 - `ASAAS_API_URL` - Asaas API base URL
 - `VPC_SUBNET_IDS` - Comma-separated subnet IDs (optional)
 - `VPC_SECURITY_GROUP_IDS` - Comma-separated security group IDs (optional)
-
-See `.github/workflows/README.md` for detailed configuration instructions.
 
 ## API Endpoints
 
@@ -331,27 +331,19 @@ See `.github/workflows/README.md` for detailed configuration instructions.
 
 ## Admin Panel
 
-The project includes a comprehensive admin panel powered by SQLAdmin with JWT-based authentication:
+The project includes JWT-based authentication for admin functionality:
 
 ### Features
 - **Multi-user support** with role-based access control (RBAC)
-- **JWT authentication** for stateless operation (ideal for serverless)
+- **JWT authentication** using Flask-JWT-Extended
 - **Permission system** with granular resource-based permissions
 - **System roles**: Super Admin, Admin, Support, Finance, Viewer
-- **Session management** with token revocation support
+- **Session management** with token tracking
 
 ### Default Admin Credentials
 - Email: `admin@numbr.com.br`
 - Password: `AdminNumbr2025!`
 - **Important**: Change this password after first login!
-
-### Admin Panel Architecture
-The admin panel uses standard SQLAdmin authentication with session-based authentication:
-- Authentication backend: `src/admin/sqladmin_config.py`
-- Session storage: Server-side sessions (compatible with Lambda)
-- Secure cookies only in production (HTTPS)
-- Session tracking in database for security
-- Default admin created by `scripts/seed_admin.py`
 
 ### Admin Models (`src/models/admin_user.py`)
 - **AdminUser**: User accounts with email/password authentication
@@ -368,11 +360,25 @@ The admin panel uses standard SQLAdmin authentication with session-based authent
 - `/api/admin/users/*` - User management (requires ADMIN_USERS permissions)
 - `/api/admin/roles/*` - Role management (requires ADMIN_ROLES permissions)
 
-### Admin Panel Access
+### Admin Panel UI
+The admin panel is powered by Flask-Admin with custom authentication and RBAC integration:
 - **URL**: `/admin`
-- **Authentication**: Required - redirects to login page if not authenticated
+- **Authentication**: JWT-based with cookies for web interface
 - **Authorization**: Permission-based access to different sections
-- **Interface**: SQLAdmin with custom model views
+- **Interface**: Bootstrap 4 theme with responsive design
+
+#### Available Admin Views:
+1. **Customers** - Full CRUD operations
+2. **Plans** - Manage subscription plans
+3. **Addons** - Manage plan addons
+4. **Revenue Ranges** - Configure pricing tiers
+5. **Plan Pricing** - Set prices per revenue range
+6. **Subscriptions** - View and manage active subscriptions
+7. **Subscription Addons** - Manage subscription extras
+8. **Payments** - View payment history (read-only)
+9. **Webhook Logs** - View webhook events (read-only)
+10. **Admin Users** - Manage admin accounts
+11. **Admin Roles** - Configure roles and permissions
 
 ### Seeding Admin Data
 Run the seed script to create initial system roles and superuser:
@@ -386,7 +392,7 @@ poetry run python scripts/seed_admin.py
    - Create `.env` file with required environment variables
    - Run `poetry install` to install dependencies
    - Run `alembic upgrade head` to apply database migrations
-   - Start with `uvicorn src.main:app --reload`
+   - Start with `flask --app src.main:app run --port 3000`
 
 2. **Testing**
    - Run tests before committing: `poetry run pytest`
@@ -395,8 +401,26 @@ poetry run python scripts/seed_admin.py
 3. **Deployment**
    - Push to appropriate branch (develop/staging/main)
    - GitHub Actions handles testing and deployment
-   - Monitor deployment in AWS CloudFormation console
+   - Monitor deployment in AWS Lambda console
    - Test endpoints after deployment
+
+## Migration from FastAPI to Flask
+
+The project was migrated from FastAPI to Flask for better Zappa compatibility:
+
+### Key Changes:
+1. **Web Framework**: FastAPI → Flask
+2. **Database Operations**: Async SQLAlchemy → Sync SQLAlchemy
+3. **HTTP Client**: httpx AsyncClient → httpx Client  
+4. **Routing**: FastAPI routers → Flask blueprints
+5. **Authentication**: FastAPI Depends → Flask-JWT-Extended decorators
+6. **Admin Panel**: SQLAdmin → Flask-Admin with JWT authentication
+
+### Benefits:
+- Native WSGI support (Zappa works better with WSGI apps)
+- Simpler deployment without ASGI-to-WSGI conversion
+- Reduced complexity in Lambda environment
+- Better compatibility with traditional Python libraries
 
 ## Workflow Reminders
 

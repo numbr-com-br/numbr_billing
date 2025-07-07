@@ -1,5 +1,5 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import declarative_base
+from sqlalchemy import create_engine
+from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from src.config import settings
 
 # Configure naming convention for snake_case
@@ -14,19 +14,29 @@ convention = {
 Base = declarative_base()
 Base.metadata.naming_convention = convention
 
-# Convert pymysql URL to aiomysql for async
-async_database_url = settings.database_url.replace("mysql+pymysql://", "mysql+aiomysql://")
-
-engine = create_async_engine(
-    async_database_url, echo=False, pool_pre_ping=True, pool_size=5, max_overflow=10
+# Create synchronous engine
+engine = create_engine(
+    settings.database_url, 
+    echo=False, 
+    pool_pre_ping=True, 
+    pool_size=5, 
+    max_overflow=10
 )
 
-AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
-async def get_db():
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def close_db_session(error=None):
+    """Close database session at end of request - Flask teardown handler"""
+    from flask import g
+    db = g.pop('db', None)
+    if db is not None:
+        db.close()

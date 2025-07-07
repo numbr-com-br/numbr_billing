@@ -1,0 +1,78 @@
+{
+    "base": {
+        "app_function": "src.handler.handler",
+        "aws_region": "us-east-1",
+        "profile_name": "numbr",
+        "project_name": "numbr-billing",
+        "runtime": "python3.11",
+        "keep_warm": false,
+        "memory_size": 1024,
+        "timeout_seconds": 30,
+        "vpc_config": {
+            "SubnetIds": [],
+            "SecurityGroupIds": []
+        },
+        "exclude": [
+            "*.pyc",
+            "*.pyo",
+            "*.git*",
+            "*.pytest_cache*",
+            "__pycache__",
+            ".localfiles",
+            "tests",
+            ".env*",
+            "*.md",
+            "*.txt",
+            ".github",
+            "scripts/test_*.py",
+            "zappa_settings_*.json",
+            ".ruff_cache"
+        ],
+        "slim_handler": true,
+        "use_precompiled_packages": true,
+        "manage_roles": true,
+        "apigateway_description": "Numbr Billing API",
+        "cors": true,
+        "cors_allow_headers": [
+            "Accept",
+            "Content-Type",
+            "X-Api-Key",
+            "Authorization"
+        ]
+    },
+    "dev": {
+        "extends": "base",
+        "s3_bucket": "numbr-billing-zappa-deployments",
+        "stage_name_env_pattern": "dev",
+        "environment_variables": {
+            "ENVIRONMENT": "dev",
+            "IS_LAMBDA": "true"
+        },
+        "domain": "billing-dev.numbr.com.br",
+        "certificate_arn": "arn:aws:acm:us-east-1:039426739841:certificate/YOUR_CERT_ARN"
+    },
+    "staging": {
+        "extends": "base",
+        "s3_bucket": "numbr-billing-zappa-deployments",
+        "stage_name_env_pattern": "staging",
+        "environment_variables": {
+            "ENVIRONMENT": "staging",
+            "IS_LAMBDA": "true"
+        },
+        "domain": "billing-staging.numbr.com.br",
+        "certificate_arn": "arn:aws:acm:us-east-1:039426739841:certificate/YOUR_CERT_ARN"
+    },
+    "prod": {
+        "extends": "base",
+        "s3_bucket": "numbr-billing-zappa-deployments",
+        "stage_name_env_pattern": "prod",
+        "keep_warm": true,
+        "memory_size": 2048,
+        "environment_variables": {
+            "ENVIRONMENT": "prod",
+            "IS_LAMBDA": "true"
+        },
+        "domain": "billing.numbr.com.br",
+        "certificate_arn": "arn:aws:acm:us-east-1:039426739841:certificate/YOUR_CERT_ARN"
+    }
+}

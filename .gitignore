@@ -50,6 +50,11 @@ alembic/versions/*.pyc
 .serverless/
 node_modules/
 
+# Zappa
+.zappa/
+handler_numbr-billing-*.zip
+numbr-billing-*.tar.gz
+
 # OS
 .DS_Store
 Thumbs.db

@@ -1,9 +1,7 @@
 """
-AWS Lambda handler for FastAPI application using Mangum
+AWS Lambda handler for Flask application
 """
-from mangum import Mangum
 from src.main import app
 
-# Create the handler for AWS Lambda
-# lifespan="off" is used to disable lifecycle events in Lambda
-handler = Mangum(app, lifespan="off")
+# Zappa will use the Flask app directly
+handler = app

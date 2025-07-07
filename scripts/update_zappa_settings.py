@@ -5,10 +5,14 @@ Update Zappa settings with environment variables for deployment
 import json
 import sys
 import os
+from dotenv import load_dotenv
 
 
 def update_zappa_settings(stage: str):
     """Update zappa_settings.json with environment variables"""
+    
+    # Load environment variables from .env file
+    load_dotenv()
     
     # Load current settings
     with open('zappa_settings.json', 'r') as f:
@@ -33,9 +37,7 @@ def update_zappa_settings(stage: str):
         # Update environment variables
         settings[stage]["environment_variables"].update(env_vars)
         
-        # Remove profile_name for CI/CD (will use IAM role)
-        if "profile_name" in settings[stage]:
-            del settings[stage]["profile_name"]
+        # Keep profile_name for local deployment
         
         # Ensure VPC config for RDS access if DATABASE_URL is provided
         if env_vars.get("DATABASE_URL"):
