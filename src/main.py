@@ -72,6 +72,14 @@ def create_app():
     # Initialize Flask-Admin
     init_admin(app)
     
+    # Health check endpoint
+    @app.route('/health')
+    def health():
+        return {
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat()
+        }
+    
     # Create tables on startup
     with app.app_context():
         Base.metadata.create_all(bind=engine)
