@@ -466,9 +466,11 @@ If the admin panel shows 500 errors:
 
 ### Current Deployment Status
 - **Development Environment**: Successfully deployed
+- **Custom Domain**: https://billing-dev.numbr.com.br ✅
 - **API Gateway URL**: https://py4cwe15d0.execute-api.us-east-1.amazonaws.com/dev
 - **Lambda Function**: numbr-billing-dev
 - **S3 Bucket**: numbr-billing-zappa-deployments
+- **Certificate**: Wildcard SSL certificate (*.numbr.com.br)
 
 ### Deployment Commands
 ```bash
@@ -489,11 +491,11 @@ poetry run zappa undeploy dev
 ```
 
 ### Working Endpoints
-- **Root**: https://py4cwe15d0.execute-api.us-east-1.amazonaws.com/dev/
-- **Health**: https://py4cwe15d0.execute-api.us-east-1.amazonaws.com/dev/health
-- **Admin Panel**: https://py4cwe15d0.execute-api.us-east-1.amazonaws.com/dev/admin/
-- **Checkout Plans**: https://py4cwe15d0.execute-api.us-east-1.amazonaws.com/dev/api/checkout/plans
-- **API Docs**: https://py4cwe15d0.execute-api.us-east-1.amazonaws.com/dev/docs
+- **Root**: https://billing-dev.numbr.com.br/
+- **Health**: https://billing-dev.numbr.com.br/health
+- **Admin Panel**: https://billing-dev.numbr.com.br/admin/
+- **Checkout Plans**: https://billing-dev.numbr.com.br/api/checkout/plans
+- **API Docs**: https://billing-dev.numbr.com.br/docs
 
 ### Important Notes
 1. The root endpoint "/" must return a valid response for Zappa deployment to succeed

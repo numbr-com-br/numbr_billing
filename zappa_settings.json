@@ -14,6 +14,8 @@
         "integration_response_codes": [200, 301, 401, 403, 404, 500],
         "method_response_codes": [200, 301, 401, 403, 404, 500],
         "parameter_depth": 10,
+        "domain": "billing-dev.numbr.com.br",
+        "certificate_arn": "arn:aws:acm:us-east-1:039426739841:certificate/d3f9e023-0ecc-470e-8295-74f5728c6f26",
         "environment_variables": {
             "ENVIRONMENT": "dev",
             "IS_LAMBDA": "true",
