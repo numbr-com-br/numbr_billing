@@ -6,7 +6,7 @@ from typing import Optional
 import os
 
 from src.database import SessionLocal
-from src.models.admin_user import AdminUser
+from src.models.admin_user import AdminUser, AdminRole
 from src.admin.permissions import Permission
 
 
