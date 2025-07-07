@@ -184,4 +184,4 @@ def test_start_checkout_missing_revenue(client, setup_pricing_data):
     )
     
     assert response.status_code == 400
-    assert "annual_revenue is required" in response.json["error"]
+    assert "Annual revenue is required" in response.json["detail"]
