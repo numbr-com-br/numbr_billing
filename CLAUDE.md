@@ -462,6 +462,51 @@ If the admin panel shows 500 errors:
 3. Ensure database connections are accessible from Lambda
 4. Check that all Flask-Admin dependencies are included in the deployment
 
+## AWS Lambda Deployment with Zappa
+
+### Current Deployment Status
+- **Development Environment**: Successfully deployed
+- **API Gateway URL**: https://py4cwe15d0.execute-api.us-east-1.amazonaws.com/dev
+- **Lambda Function**: numbr-billing-dev
+- **S3 Bucket**: numbr-billing-zappa-deployments
+
+### Deployment Commands
+```bash
+# Deploy new environment
+poetry run zappa deploy dev
+
+# Update existing deployment
+poetry run zappa update dev
+
+# Check deployment status
+poetry run zappa status dev
+
+# View logs
+poetry run zappa tail dev
+
+# Remove all AWS resources
+poetry run zappa undeploy dev
+```
+
+### Working Endpoints
+- **Root**: https://py4cwe15d0.execute-api.us-east-1.amazonaws.com/dev/
+- **Health**: https://py4cwe15d0.execute-api.us-east-1.amazonaws.com/dev/health
+- **Admin Panel**: https://py4cwe15d0.execute-api.us-east-1.amazonaws.com/dev/admin/
+- **Checkout Plans**: https://py4cwe15d0.execute-api.us-east-1.amazonaws.com/dev/api/checkout/plans
+- **API Docs**: https://py4cwe15d0.execute-api.us-east-1.amazonaws.com/dev/docs
+
+### Important Notes
+1. The root endpoint "/" must return a valid response for Zappa deployment to succeed
+2. All static files for Flask-Admin are served from CDN when IS_LAMBDA=true
+3. Database connections work without VPC configuration using public RDS endpoint
+4. Environment variables are managed in zappa_settings.json
+
+### Next Steps
+1. Configure custom domains with SSL certificates
+2. Deploy staging and production environments
+3. Set up VPC if needed for enhanced security
+4. Configure CloudWatch alarms for monitoring
+
 ## Workflow Reminders
 
 - Sempre atualize os testes em qualquer alteração do codigo
