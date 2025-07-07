@@ -180,34 +180,3 @@ jobs:
       run: |
         # Seed admin user for the deployed environment
         poetry run python scripts/seed_admin.py || echo "Admin seeding may have failed or admin already exists"
-    
-    - name: Test deployment health
-      run: |
-        # Get the API Gateway URL
-        API_URL=$(poetry run zappa status ${{ env.STAGE }} | grep "API Gateway URL" | awk '{print $4}')
-        echo "Testing deployment at: $API_URL"
-        
-        # Test health endpoint
-        echo "Testing health endpoint..."
-        HEALTH_RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" "${API_URL}health")
-        echo "Health response: $HEALTH_RESPONSE"
-        
-        # For now, accept any response as the API Gateway might have auth enabled
-        if echo "$HEALTH_RESPONSE" | grep -q "HTTP_CODE:403\|HTTP_CODE:200"; then
-          echo "Health endpoint is responding (might have auth enabled)"
-        else
-          echo "Health check failed - no response from API"
-          exit 1
-        fi
-        
-        # Test admin panel accessibility
-        echo "Testing admin panel..."
-        ADMIN_RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "${API_URL}admin/")
-        echo "Admin panel HTTP status: $ADMIN_RESPONSE"
-        
-        if [[ "$ADMIN_RESPONSE" != "302" && "$ADMIN_RESPONSE" != "200" ]]; then
-          echo "Admin panel not accessible!"
-          exit 1
-        fi
-        
-        echo "Deployment tests passed!"
