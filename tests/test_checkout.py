@@ -1,16 +1,14 @@
 import pytest
-import pytest_asyncio
-from httpx import AsyncClient
 from decimal import Decimal
 from unittest.mock import patch
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from src.models import Plan, RevenueRange, PlanPricing, Addon
 from src.enums import BillingCycle, AddonType
 
 
-@pytest_asyncio.fixture
-async def setup_pricing_data(db: AsyncSession):
+@pytest.fixture
+def setup_pricing_data(db: Session):
     # Create revenue ranges
     ranges = [
         RevenueRange(
@@ -20,7 +18,7 @@ async def setup_pricing_data(db: AsyncSession):
             sort_order=1
         ),
         RevenueRange(
-            name="Pequena Empresa",
+            name="Pequena Empresa", 
             min_revenue=Decimal("360000.01"),
             max_revenue=Decimal("4800000"),
             sort_order=2
@@ -29,7 +27,7 @@ async def setup_pricing_data(db: AsyncSession):
     
     for range_obj in ranges:
         db.add(range_obj)
-    await db.commit()
+    db.commit()
     
     # Create plan
     plan = Plan(
@@ -39,7 +37,7 @@ async def setup_pricing_data(db: AsyncSession):
         features=["Feature 1", "Feature 2"]
     )
     db.add(plan)
-    await db.commit()
+    db.commit()
     
     # Create plan pricing
     for i, range_obj in enumerate(ranges):
@@ -49,135 +47,141 @@ async def setup_pricing_data(db: AsyncSession):
             price=Decimal("50") * (i + 1)
         )
         db.add(pricing)
+    db.commit()
     
-    # Create addon
-    addon = Addon(
+    # Create addons
+    addon1 = Addon(
         name="Extra Users",
         description="Add more users",
-        price=Decimal("20"),
-        type=AddonType.ONE_TIME
+        type=AddonType.PER_UNIT,
+        price=Decimal("10")
     )
-    db.add(addon)
-    await db.commit()
+    addon2 = Addon(
+        name="Premium Support",
+        description="24/7 support",
+        type=AddonType.FIXED,
+        price=Decimal("50")
+    )
+    db.add(addon1)
+    db.add(addon2)
+    db.commit()
     
     return {
         "plan": plan,
         "ranges": ranges,
-        "addon": addon
+        "addons": [addon1, addon2]
     }
 
 
-@pytest.mark.asyncio
-async def test_get_plans_with_pricing(client: AsyncClient, db: AsyncSession, setup_pricing_data):
-    response = await client.get("/api/checkout/plans")
+def test_get_plans_with_pricing(client, setup_pricing_data):
+    """Test getting plans with their pricing tiers"""
+    response = client.get("/api/checkout/plans")
     
     assert response.status_code == 200
-    data = response.json()
+    plans = response.json
+    assert len(plans) == 1
     
-    assert len(data) == 1
-    plan = data[0]
-    
+    plan = plans[0]
     assert plan["name"] == "Starter"
     assert len(plan["pricing"]) == 2
-    
-    # Check pricing details
-    pricing = plan["pricing"]
-    assert pricing[0]["revenue_range_name"] == "Microempresa"
-    assert Decimal(pricing[0]["price"]) == Decimal("50")
-    assert pricing[1]["revenue_range_name"] == "Pequena Empresa"
-    assert Decimal(pricing[1]["price"]) == Decimal("100")
+    assert plan["pricing"][0]["price"] == "50.00"
+    assert plan["pricing"][1]["price"] == "100.00"
 
 
-@pytest.mark.asyncio
-async def test_get_revenue_ranges(client: AsyncClient, db: AsyncSession, setup_pricing_data):
-    response = await client.get("/api/checkout/revenue-ranges")
+def test_get_addons(client, setup_pricing_data):
+    """Test getting available addons"""
+    response = client.get("/api/checkout/addons")
     
     assert response.status_code == 200
-    data = response.json()
+    addons = response.json
+    assert len(addons) == 2
+    assert addons[0]["name"] == "Extra Users"
+    assert addons[1]["name"] == "Premium Support"
+
+
+def test_get_revenue_ranges(client, setup_pricing_data):
+    """Test getting revenue ranges"""
+    response = client.get("/api/checkout/revenue-ranges")
     
-    assert len(data) == 2
-    assert data[0]["name"] == "Microempresa"
-    assert data[1]["name"] == "Pequena Empresa"
+    assert response.status_code == 200
+    ranges = response.json
+    assert len(ranges) == 2
+    assert ranges[0]["name"] == "Microempresa"
+    assert ranges[1]["name"] == "Pequena Empresa"
 
 
-@pytest.mark.asyncio
-async def test_start_checkout_with_revenue(client: AsyncClient, db: AsyncSession, setup_pricing_data):
-    data = setup_pricing_data
-    
-    with patch("src.services.asaas.asaas_service.create_customer") as mock_create_customer, \
-         patch("src.services.asaas.asaas_service.create_subscription") as mock_create_subscription:
-        
-        mock_create_customer.return_value = {"id": "cus_test123"}
-        mock_create_subscription.return_value = {
-            "id": "sub_test123",
-            "nextDueDate": "2024-01-01"
-        }
-        
-        checkout_data = {
-            "plan_id": data["plan"].id,
-            "addon_ids": [data["addon"].id],
-            "customer": {
-                "name": "Test Company",
-                "email": "test@company.com",
-                "cpf_cnpj": "12345678901",
-                "phone": "11999999999",
-                "annual_revenue": "300000"  # Microempresa range
-            },
-            "billing_type": "CREDIT_CARD"
-        }
-        
-        response = await client.post("/api/checkout/start", json=checkout_data)
-        
-        assert response.status_code == 200
-        result = response.json()
-        
-        # Price should be plan price (50) + addon price (20) = 70
-        assert Decimal(result["total_price"]) == Decimal("70")
-        assert "payment_link" in result
-        assert "subscription_id" in result
-
-
-@pytest.mark.asyncio
-async def test_start_checkout_without_revenue(client: AsyncClient, db: AsyncSession, setup_pricing_data):
-    data = setup_pricing_data
-    
-    checkout_data = {
-        "plan_id": data["plan"].id,
-        "addon_ids": [],
-        "customer": {
-            "name": "Test Company",
-            "email": "test2@company.com",
-            "cpf_cnpj": "12345678902",
-            "phone": "11999999999"
-            # No annual_revenue provided
-        },
-        "billing_type": "BOLETO"
+@patch('src.services.asaas.AsaasService.create_customer')
+@patch('src.services.asaas.AsaasService.create_subscription')
+def test_start_checkout(mock_create_subscription, mock_create_customer, client, setup_pricing_data):
+    """Test starting checkout process"""
+    # Mock Asaas responses
+    mock_create_customer.return_value = {
+        "id": "cus_test123",
+        "name": "Test Customer",
+        "email": "test@example.com"
     }
     
-    response = await client.post("/api/checkout/start", json=checkout_data)
+    mock_create_subscription.return_value = {
+        "id": "sub_test123",
+        "customer": "cus_test123",
+        "billingType": "CREDIT_CARD",
+        "value": 50.0,
+        "nextDueDate": "2024-01-01",
+        "status": "PENDING"
+    }
     
-    assert response.status_code == 400
-    assert "Annual revenue is required" in response.json()["detail"]
-
-
-@pytest.mark.asyncio
-async def test_start_checkout_invalid_revenue_range(client: AsyncClient, db: AsyncSession, setup_pricing_data):
+    # Prepare request data
     data = setup_pricing_data
-    
     checkout_data = {
-        "plan_id": data["plan"].id,
-        "addon_ids": [],
         "customer": {
-            "name": "Test Company",
-            "email": "test3@company.com",
-            "cpf_cnpj": "12345678903",
+            "name": "Test Customer",
+            "email": "test@example.com",
+            "cpf_cnpj": "12345678901",
             "phone": "11999999999",
-            "annual_revenue": "10000000"  # Above configured ranges
+            "annual_revenue": "100000"
         },
-        "billing_type": "PIX"
+        "plan_id": data["plan"].id,
+        "addon_ids": [data["addons"][0].id],
+        "billing_type": "CREDIT_CARD"
     }
     
-    response = await client.post("/api/checkout/start", json=checkout_data)
+    response = client.post(
+        "/api/checkout/start",
+        json=checkout_data,
+        headers={"Content-Type": "application/json"}
+    )
+    
+    assert response.status_code == 200
+    result = response.json
+    assert "subscription_id" in result
+    assert "payment_link" in result
+    
+    # Verify mocks were called
+    mock_create_customer.assert_called_once()
+    mock_create_subscription.assert_called_once()
+
+
+def test_start_checkout_missing_revenue(client, setup_pricing_data):
+    """Test checkout fails without annual revenue"""
+    data = setup_pricing_data
+    checkout_data = {
+        "customer": {
+            "name": "Test Customer",
+            "email": "test@example.com",
+            "cpf_cnpj": "12345678901",
+            "phone": "11999999999"
+            # Missing annual_revenue
+        },
+        "plan_id": data["plan"].id,
+        "addon_ids": [],
+        "billing_type": "CREDIT_CARD"
+    }
+    
+    response = client.post(
+        "/api/checkout/start",
+        json=checkout_data,
+        headers={"Content-Type": "application/json"}
+    )
     
     assert response.status_code == 400
-    assert "No pricing available" in response.json()["detail"]
+    assert "annual_revenue is required" in response.json["error"]

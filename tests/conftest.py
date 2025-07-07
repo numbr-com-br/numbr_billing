@@ -1,9 +1,7 @@
 import pytest
-import pytest_asyncio
-import asyncio
-from typing import AsyncGenerator
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from typing import Generator
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 import os
 
 # Set test environment
@@ -20,54 +18,61 @@ if "JWT_SECRET_KEY" not in os.environ:
     os.environ["JWT_SECRET_KEY"] = "test_secret_key_for_jwt_authentication"
 
 from src.database import Base
-from src.main import app
+from src.main import create_app
 from src.database import get_db
 
 
-# Remove custom event_loop fixture to avoid conflicts with pytest-asyncio
-# pytest-asyncio will provide the event loop automatically
-
-
-@pytest_asyncio.fixture(scope="function")
-async def engine():
+@pytest.fixture(scope="function")
+def engine():
     """Create test database engine."""
-    test_db_url = os.environ["DATABASE_URL"].replace("mysql+pymysql://", "mysql+aiomysql://")
-    engine = create_async_engine(
+    test_db_url = os.environ["DATABASE_URL"]
+    engine = create_engine(
         test_db_url,
         echo=False,
         pool_pre_ping=True
     )
+    # Create tables for this test
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
     yield engine
-    await engine.dispose()
+    engine.dispose()
 
 
-@pytest_asyncio.fixture(scope="function")
-async def db(engine) -> AsyncGenerator[AsyncSession, None]:
+@pytest.fixture(scope="function")
+def db(engine) -> Generator[Session, None, None]:
     """Create test database session."""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
-    
-    AsyncSessionLocal = async_sessionmaker(
-        engine,
-        class_=AsyncSession,
-        expire_on_commit=False
+    TestSessionLocal = sessionmaker(
+        autocommit=False,
+        autoflush=False,
+        bind=engine
     )
     
-    async with AsyncSessionLocal() as session:
+    session = TestSessionLocal()
+    try:
         yield session
+    finally:
+        session.close()
 
 
-@pytest_asyncio.fixture(scope="function")
-async def client(db: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+@pytest.fixture(scope="function")
+def app():
+    """Create test Flask app."""
+    app = create_app()
+    app.config['TESTING'] = True
+    return app
+
+
+@pytest.fixture(scope="function")
+def client(app, db: Session):
     """Create test client with database override."""
-    async def override_get_db():
-        yield db
+    # Override the get_db dependency to use test database
+    def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
     
-    app.dependency_overrides[get_db] = override_get_db
+    app.config['get_db'] = override_get_db
     
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        yield ac
-    
-    app.dependency_overrides.clear()
+    with app.test_client() as client:
+        yield client
