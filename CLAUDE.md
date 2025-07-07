@@ -331,14 +331,16 @@ The deployment pipeline requires several secrets and variables configured in Git
 
 ## Admin Panel
 
-The project includes JWT-based authentication for admin functionality:
+The project includes a comprehensive admin panel powered by Flask-Admin with JWT-based authentication:
 
 ### Features
+- **Flask-Admin integration** with custom templates and JWT authentication
 - **Multi-user support** with role-based access control (RBAC)
-- **JWT authentication** using Flask-JWT-Extended
+- **JWT authentication** using Flask-JWT-Extended for both API and web interface
 - **Permission system** with granular resource-based permissions
 - **System roles**: Super Admin, Admin, Support, Finance, Viewer
 - **Session management** with token tracking
+- **Custom model views** with RBAC integration for all database models
 
 ### Default Admin Credentials
 - Email: `admin@numbr.com.br`
@@ -366,6 +368,17 @@ The admin panel is powered by Flask-Admin with custom authentication and RBAC in
 - **Authentication**: JWT-based with cookies for web interface
 - **Authorization**: Permission-based access to different sections
 - **Interface**: Bootstrap 4 theme with responsive design
+
+### Accessing Admin Panel Locally
+```bash
+# Run the Flask app
+poetry run python src/main.py
+
+# Access admin panel
+# Open browser at: http://localhost:3000/admin/
+```
+
+The admin panel will redirect to login page if not authenticated. Use the default credentials or create a new admin user with the seed script.
 
 #### Available Admin Views:
 1. **Customers** - Full CRUD operations

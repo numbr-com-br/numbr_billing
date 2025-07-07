@@ -2,11 +2,11 @@ from flask import redirect, url_for, request
 from flask_admin import Admin, AdminIndexView
 from flask_admin.contrib.sqla import ModelView
 from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
-from sqlalchemy.orm import Session
 from typing import Optional
+import os
 
 from src.database import SessionLocal
-from src.models.admin_user import AdminUser, AdminRole
+from src.models.admin_user import AdminUser
 from src.admin.permissions import Permission
 
 
@@ -152,13 +152,26 @@ class WebhookLogView(ReadOnlyModelView):
 def init_admin(app):
     """Initialize Flask-Admin with authentication and all model views"""
     
+    # Configure Flask-Admin for Lambda/Zappa deployment
+    # Use CDN for static assets instead of serving locally
+    app.config['FLASK_ADMIN_SWATCH'] = 'cerulean'
+    
+    # Create admin with proper base URL for Lambda
+    base_url = '/admin'
+    if os.environ.get('IS_LAMBDA'):
+        # In Lambda, we need to ensure proper URL handling
+        app.config['FLASK_ADMIN_USE_CDN'] = True
+    
     admin = Admin(
         app,
         name='Numbr Billing Admin',
         template_mode='bootstrap4',
-        index_view=AuthenticatedAdminIndexView()
+        index_view=AuthenticatedAdminIndexView(),
+        base_template='admin/custom_base.html',
+        static_url_path=f'{base_url}/static'
     )
     
+    # Use a context manager for db_session
     db_session = SessionLocal()
     
     # Import models
@@ -252,5 +265,15 @@ def init_admin(app):
         category='Reports',
         required_permission=Permission.WEBHOOKS_READ
     ))
+    
+    # Important: Close the session after admin initialization
+    # In Lambda, we need to manage connections carefully
+    @app.teardown_appcontext
+    def close_admin_session(error):
+        if hasattr(app, '_admin_db_session'):
+            app._admin_db_session.close()
+    
+    # Store session reference for cleanup
+    app._admin_db_session = db_session
     
     return admin

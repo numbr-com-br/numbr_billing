@@ -8,7 +8,7 @@ from src.routers import checkout, webhooks
 from src.routers.admin_auth import create_admin_auth_blueprint
 from src.routers.admin_users import create_admin_users_blueprint
 from src.routers.admin_roles import create_admin_roles_blueprint
-from src.database import engine, Base, get_db, close_db_session
+from src.database import engine, Base, close_db_session
 from src.config import settings
 from src.admin.flask_admin import init_admin
 
@@ -20,6 +20,12 @@ def create_app():
     app.config['SECRET_KEY'] = settings.jwt_secret_key
     app.config['SQLALCHEMY_DATABASE_URI'] = settings.database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+    # Lambda-specific configuration
+    if os.environ.get('IS_LAMBDA'):
+        app.config['IS_LAMBDA'] = True
+        app.config['PROPAGATE_EXCEPTIONS'] = True
+        app.config['FLASK_ADMIN_USE_CDN'] = True
     
     # JWT Configuration
     app.config['JWT_SECRET_KEY'] = settings.jwt_secret_key
@@ -69,8 +75,12 @@ def create_app():
     app.register_blueprint(create_admin_users_blueprint(), url_prefix="/api/admin/users")
     app.register_blueprint(create_admin_roles_blueprint(), url_prefix="/api/admin/roles")
     
-    # Initialize Flask-Admin
-    init_admin(app)
+    # Initialize Flask-Admin with error handling for Lambda
+    try:
+        init_admin(app)
+    except Exception as e:
+        print(f"Warning: Flask-Admin initialization failed: {e}")
+        # Continue without admin panel in case of initialization error
     
     # Health check endpoint
     @app.route('/health')
@@ -94,6 +104,27 @@ def create_app():
     
     # Register teardown handler
     app.teardown_appcontext(close_db_session)
+    
+    # Error handlers for better debugging in Lambda
+    @app.errorhandler(500)
+    def internal_error(error):
+        import traceback
+        print(f"Internal Server Error: {error}")
+        traceback.print_exc()
+        return {
+            "error": "Internal server error",
+            "message": str(error) if app.debug else "An error occurred"
+        }, 500
+    
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        import traceback
+        print(f"Unhandled exception: {e}")
+        traceback.print_exc()
+        return {
+            "error": "Server error",
+            "message": str(e) if app.debug else "An error occurred"
+        }, 500
     
     return app
 
