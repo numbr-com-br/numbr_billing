@@ -435,6 +435,33 @@ The project was migrated from FastAPI to Flask for better Zappa compatibility:
 - Reduced complexity in Lambda environment
 - Better compatibility with traditional Python libraries
 
+## Flask-Admin on AWS Lambda
+
+### Known Issues and Solutions
+
+Flask-Admin can have issues running on AWS Lambda due to static file serving limitations. The application has been configured to handle this:
+
+1. **CDN for Static Assets**: When `IS_LAMBDA` environment variable is set, Flask-Admin uses CDN URLs for Bootstrap, jQuery, and other assets instead of serving them locally.
+
+2. **Custom Base Template**: The `src/templates/admin/custom_base.html` template conditionally loads assets from CDN when running on Lambda.
+
+3. **Error Handling**: Comprehensive error handlers have been added to capture and log 500 errors for debugging.
+
+4. **Database Session Management**: Proper session cleanup is configured to prevent connection leaks in Lambda environment.
+
+### Accessing Admin Panel
+- **Local**: http://localhost:3000/admin/
+- **Development**: https://billing-dev.numbr.com.br/admin/
+- **Staging**: https://billing-staging.numbr.com.br/admin/
+- **Production**: https://billing.numbr.com.br/admin/
+
+### Troubleshooting
+If the admin panel shows 500 errors:
+1. Check CloudWatch logs using `poetry run zappa tail [stage]`
+2. Verify `IS_LAMBDA=true` is set in environment variables
+3. Ensure database connections are accessible from Lambda
+4. Check that all Flask-Admin dependencies are included in the deployment
+
 ## Workflow Reminders
 
 - Sempre atualize os testes em qualquer alteração do codigo
@@ -442,3 +469,4 @@ The project was migrated from FastAPI to Flask for better Zappa compatibility:
 - Deploy local com Zappa funciona perfeitamente no macOS
 - Sempre teste os endpoints após o deploy
 - Use `zappa tail` para monitorar logs em tempo real
+- Flask-Admin requer configuração especial para funcionar no Lambda
