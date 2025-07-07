@@ -163,8 +163,9 @@ jobs:
     - name: Deploy with Zappa
       run: |
         # Check if deployment exists and deploy/update accordingly
-        if poetry run zappa status ${{ env.STAGE }} 2>&1 | grep -q "Error"  || 
-           poetry run zappa status ${{ env.STAGE }} 2>&1 | grep -q "not deployed"; then
+        STATUS_OUTPUT=$(poetry run zappa status ${{ env.STAGE }} 2>&1 || true)
+        
+        if echo "$STATUS_OUTPUT" | grep -q "Error: \|not deployed\|does not exist"; then
           echo "Deploying new Lambda function..."
           poetry run zappa deploy ${{ env.STAGE }} --disable_progress
         else
