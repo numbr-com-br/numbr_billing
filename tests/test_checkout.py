@@ -53,13 +53,13 @@ def setup_pricing_data(db: Session):
     addon1 = Addon(
         name="Extra Users",
         description="Add more users",
-        type=AddonType.PER_UNIT,
+        type=AddonType.RECURRING,
         price=Decimal("10")
     )
     addon2 = Addon(
         name="Premium Support",
         description="24/7 support",
-        type=AddonType.FIXED,
+        type=AddonType.ONE_TIME,
         price=Decimal("50")
     )
     db.add(addon1)
