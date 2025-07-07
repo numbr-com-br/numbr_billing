@@ -37,7 +37,10 @@ def update_zappa_settings(stage: str):
         # Update environment variables
         settings[stage]["environment_variables"].update(env_vars)
         
-        # Keep profile_name for local deployment
+        # Remove profile_name in CI/CD environment (GitHub Actions)
+        if os.environ.get("CI"):
+            settings[stage].pop("profile_name", None)
+            print("Removed profile_name for CI/CD deployment")
         
         # Ensure VPC config for RDS access if DATABASE_URL is provided
         if env_vars.get("DATABASE_URL"):
