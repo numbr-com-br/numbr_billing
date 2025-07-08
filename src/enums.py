@@ -30,3 +30,9 @@ class PaymentStatus(str, Enum):
     OVERDUE = "OVERDUE"
     REFUNDED = "REFUNDED"
     FAILED = "FAILED"
+
+
+class BillingType(str, Enum):
+    CREDIT_CARD = "CREDIT_CARD"
+    BOLETO = "BOLETO"
+    PIX = "PIX"

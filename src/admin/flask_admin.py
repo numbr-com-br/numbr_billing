@@ -250,6 +250,10 @@ def init_admin(app):
         required_permission=Permission.WEBHOOKS_READ
     ))
     
+    # Add custom checkout generator view
+    from src.admin.checkout_generator import CheckoutGeneratorView
+    admin.add_view(CheckoutGeneratorView(name='Generate Checkout', category='Tools'))
+    
     @app.teardown_appcontext
     def close_admin_session(error):
         if hasattr(app, '_admin_db_session'):

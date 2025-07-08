@@ -1,14 +1,14 @@
-from starlette.requests import Request
-from sqladmin import BaseView, expose
+from flask import render_template, request, redirect, url_for, flash
+from flask_admin import BaseView, expose
+from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 from datetime import datetime, timedelta
 from decimal import Decimal
 
 from src.database import SessionLocal
 from src.models import Customer, Plan, Addon, RevenueRange, PlanPricing, Subscription, SubscriptionAddon
 from src.enums import SubscriptionStatus, BillingType
-from src.services.asaas_service import AsaasService
+from src.services.asaas import AsaasService
 from src.admin.permissions import Permission
 from src.config import settings
 
@@ -16,30 +16,36 @@ from src.config import settings
 class CheckoutGeneratorView(BaseView):
     """Custom admin view for generating Asaas checkout links"""
     
-    name = "Generate Checkout Link"
-    icon = "fa-solid fa-link"
-    
-    def is_accessible(self, request: Request) -> bool:
-        """Check if user has permission to access this view"""
-        if not request.session.get("user_id"):
+    def is_accessible(self):
+        """Check if current user has access to this view"""
+        try:
+            verify_jwt_in_request(optional=True)
+            user_id = get_jwt_identity()
+            
+            if not user_id:
+                return False
+            
+            db = SessionLocal()
+            try:
+                from src.models.admin_user import AdminUser
+                user = db.query(AdminUser).filter_by(id=user_id).first()
+                if not user or not user.is_active:
+                    return False
+                
+                return user.has_permission(Permission.CUSTOMERS_WRITE)
+            finally:
+                db.close()
+        except:
             return False
-        
-        # Superusers have all access
-        if request.session.get("is_superuser"):
-            return True
-        
-        # Check permissions
-        user_permissions = request.session.get("permissions", [])
-        return Permission.CUSTOMERS_WRITE.value in user_permissions
     
-    def is_visible(self, request: Request) -> bool:
-        """Check if view should be visible in menu"""
-        return self.is_accessible(request)
+    def inaccessible_callback(self, name, **kwargs):
+        """Redirect to login page when access is denied"""
+        return redirect(url_for('admin_auth.login', next=request.url))
     
-    @expose("/generate", methods=["GET", "POST"])
-    async def generate_checkout(self, request: Request):
+    @expose('/', methods=['GET', 'POST'])
+    def index(self):
         """Generate checkout link page"""
-        if request.method == "GET":
+        if request.method == 'GET':
             with SessionLocal() as db:
                 result = db.execute(
                     select(Customer).order_by(Customer.name)
@@ -73,19 +79,17 @@ class CheckoutGeneratorView(BaseView):
                 (BillingType.PIX.value, "PIX"),
             ]
             
-            return await self.templates.render(
-                request,
-                "admin/checkout_generator.html",
-                context={
-                    "customer_choices": customer_choices,
-                    "plan_choices": plan_choices,
-                    "revenue_range_choices": revenue_range_choices,
-                    "addon_choices": addon_choices,
-                    "billing_type_choices": billing_type_choices,
-                }
+            return self.render(
+                'admin/checkout_generator.html',
+                customer_choices=customer_choices,
+                plan_choices=plan_choices,
+                revenue_range_choices=revenue_range_choices,
+                addon_choices=addon_choices,
+                billing_type_choices=billing_type_choices,
             )
         
-        form_data = await request.form()
+        # POST - Process form
+        form_data = request.form
         
         errors = []
         if not form_data.get("plan_id"):
@@ -103,16 +107,11 @@ class CheckoutGeneratorView(BaseView):
                 errors.append("Customer email is required for new customer")
         
         if errors:
-            return await self.templates.render(
-                request,
-                "admin/checkout_generator.html",
-                context={
-                    "errors": errors,
-                    "form_data": form_data,
-                }
-            )
+            for error in errors:
+                flash(error, 'error')
+            return redirect(url_for('.index'))
         
-        asaas_service = AsaasService(api_key=settings.asaas_api_key)
+        asaas_service = AsaasService()
         
         with SessionLocal() as db:
             if customer_id:
@@ -146,12 +145,8 @@ class CheckoutGeneratorView(BaseView):
             plan_pricing = result.scalar_one_or_none()
             
             if not plan_pricing:
-                errors.append(f"No pricing found for {plan.name} in {revenue_range.name}")
-                return await self.templates.render(
-                    request,
-                    "admin/checkout_generator.html",
-                    context={"errors": errors, "form_data": form_data}
-                )
+                flash(f"No pricing found for {plan.name} in {revenue_range.name}", 'error')
+                return redirect(url_for('.index'))
             
             total_price = Decimal(str(plan_pricing.price))
             
@@ -211,17 +206,13 @@ class CheckoutGeneratorView(BaseView):
             
             payment_link = f"https://www.asaas.com/b/pay/{asaas_subscription['id']}"
             
-            # Show success with payment link
-            return await self.templates.render(
-                request,
-                "admin/checkout_success.html",
-                context={
-                    "customer": customer,
-                    "plan": plan,
-                    "revenue_range": revenue_range,
-                    "addons": addons,
-                    "total_price": total_price,
-                    "payment_link": payment_link,
-                    "subscription_id": subscription.id,
-                }
+            return self.render(
+                'admin/checkout_success.html',
+                customer=customer,
+                plan=plan,
+                revenue_range=revenue_range,
+                addons=addons,
+                total_price=total_price,
+                payment_link=payment_link,
+                subscription_id=subscription.id,
             )
