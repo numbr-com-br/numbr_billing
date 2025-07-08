@@ -19,3 +19,9 @@ class Addon(Base):
     updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
 
     subscription_addons = relationship("SubscriptionAddon", back_populates="addon")
+    
+    def __repr__(self):
+        return f"{self.name} - R$ {self.price:.2f} ({self.type.value})"
+    
+    def __str__(self):
+        return self.__repr__()

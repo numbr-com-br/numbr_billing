@@ -369,6 +369,18 @@ The admin panel is powered by Flask-Admin with custom authentication and RBAC in
 - **Authorization**: Permission-based access to different sections
 - **Interface**: Bootstrap 4 theme with responsive design
 
+### Checkout Link Generator
+The admin panel includes a custom tool for generating Asaas checkout links:
+- **Location**: Tools > Generate Checkout in admin menu
+- **Permission Required**: CUSTOMERS_WRITE
+- **Features**:
+  - Select existing customer or create new one
+  - Choose plan and revenue range for pricing
+  - Add optional addons
+  - Select billing type (Credit Card, Boleto, PIX)
+  - Generates Asaas checkout link instantly
+  - Shows payment link with copy and open buttons
+
 ### Accessing Admin Panel Locally
 ```bash
 # Run the Flask app
@@ -517,3 +529,4 @@ poetry run zappa undeploy dev
 - Sempre teste os endpoints após o deploy
 - Use `zappa tail` para monitorar logs em tempo real
 - Flask-Admin requer configuração especial para funcionar no Lambda
+- Mantenha o código limpo: sem comentários desnecessários, imports não utilizados ou código redundante

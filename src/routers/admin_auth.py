@@ -51,23 +51,18 @@ def create_admin_auth_blueprint():
     @bp.route("/login", methods=["GET", "POST"])
     @with_db_session
     def login(db: Session):
-        # Handle GET request - show login form
         if request.method == "GET":
             next_url = request.args.get('next')
             return render_template('admin/login.html', next=next_url)
         
-        # Handle POST request
-        # Check if it's a JSON request (API) or form request (Admin Panel)
         is_json_request = request.is_json
         
         if is_json_request:
-            # API login
             data = request.get_json()
             login_request = LoginRequest.model_validate(data)
             email = login_request.email
             password = login_request.password
         else:
-            # Form login
             email = request.form.get('email')
             password = request.form.get('password')
         
@@ -79,12 +74,10 @@ def create_admin_auth_blueprint():
                 flash("Invalid email or password", "error")
                 return redirect(url_for('admin_auth.login'))
         
-        # Get IP and user agent from request
         x_forwarded_for = request.headers.get("X-Forwarded-For")
         ip_address = x_forwarded_for.split(",")[0].strip() if x_forwarded_for else request.remote_addr
         user_agent = request.headers.get("User-Agent", "Unknown")
         
-        # Create tokens with additional claims
         additional_claims = {
             "email": user.email,
             "is_superuser": user.is_superuser,
@@ -100,8 +93,6 @@ def create_admin_auth_blueprint():
             additional_claims=additional_claims
         )
         
-        # Create session record
-        # In Flask-JWT-Extended, we need to decode the token to get JTI
         from flask_jwt_extended import decode_token
         decoded = decode_token(access_token)
         token_jti = decoded.get("jti")
@@ -111,7 +102,6 @@ def create_admin_auth_blueprint():
         )
         
         if is_json_request:
-            # API response
             response = {
                 "access_token": access_token,
                 "refresh_token": refresh_token,
@@ -119,7 +109,6 @@ def create_admin_auth_blueprint():
             }
             return jsonify(response)
         else:
-            # Admin panel response - set cookies and redirect
             response = redirect(request.form.get('next') or url_for('admin.index'))
             set_access_cookies(response, access_token)
             flash(f"Welcome back, {user.full_name or user.email}!", "success")
@@ -129,13 +118,10 @@ def create_admin_auth_blueprint():
     @jwt_required(optional=True)
     @with_db_session
     def logout(db: Session):
-        # Check if user is authenticated
         identity = get_jwt_identity()
         if identity:
-            # Get JTI from current token
             jti = get_jwt().get("jti")
             if jti:
-                # Update session to mark as logged out
                 stmt = (
                     update(AdminSession)
                     .where(AdminSession.token_jti == jti)
@@ -144,13 +130,11 @@ def create_admin_auth_blueprint():
                 db.execute(stmt)
                 db.commit()
         
-        # Check if it's an API request or admin panel request
         is_json_request = request.is_json or request.method == "POST" and request.headers.get('Content-Type') == 'application/json'
         
         if is_json_request:
             return jsonify({"message": "Successfully logged out"})
         else:
-            # Admin panel logout - clear cookies and redirect
             response = redirect(url_for('admin_auth.login'))
             unset_jwt_cookies(response)
             flash("You have been logged out successfully.", "info")
@@ -163,7 +147,6 @@ def create_admin_auth_blueprint():
         current_user_id = get_jwt_identity()
         claims = get_jwt()
         
-        # Create new access token with same claims
         additional_claims = {
             "email": claims.get("email"),
             "is_superuser": claims.get("is_superuser"),
@@ -175,7 +158,6 @@ def create_admin_auth_blueprint():
             additional_claims=additional_claims
         )
         
-        # Create new session record
         user = db.get(AdminUser, current_user_id)
         if user:
             from flask_jwt_extended import decode_token
@@ -215,16 +197,13 @@ def create_admin_auth_blueprint():
         if not user:
             return jsonify({"detail": "User not found"}), 404
         
-        # Verify current password
         if not verify_password(password_request.current_password, user.password_hash):
             return jsonify({"detail": "Current password is incorrect"}), 400
         
-        # Update password
         user.password_hash = get_password_hash(password_request.new_password)
         user.updated_at = datetime.utcnow()
         db.commit()
         
-        # Logout all sessions for this user
         stmt = (
             update(AdminSession)
             .where(AdminSession.user_id == user.id)
@@ -242,7 +221,6 @@ def create_admin_auth_blueprint():
     def get_active_sessions(db: Session):
         current_user_id = get_jwt_identity()
         
-        # Get active sessions for current user
         result = db.execute(
             select(AdminSession)
             .where(AdminSession.user_id == current_user_id)

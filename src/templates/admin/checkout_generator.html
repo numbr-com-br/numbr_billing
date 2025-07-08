@@ -1,0 +1,168 @@
+{% extends "admin/custom_base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Generate Asaas Checkout Link</h3>
+                </div>
+                <div class="card-body">
+                    {% if errors %}
+                    <div class="alert alert-danger">
+                        <ul class="mb-0">
+                            {% for error in errors %}
+                            <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    
+                    <form method="post" action="{{ url_for('admin:checkout-generator:generate_checkout') }}">
+                        <h4>Customer Information</h4>
+                        <div class="form-group">
+                            <label for="customer_id">Select Existing Customer</label>
+                            <select class="form-control" id="customer_id" name="customer_id">
+                                {% for value, label in customer_choices %}
+                                <option value="{{ value }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <strong>OR</strong> Create New Customer:
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="new_customer_name">Name</label>
+                                    <input type="text" class="form-control" id="new_customer_name" name="new_customer_name" 
+                                           value="{{ form_data.get('new_customer_name', '') }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="new_customer_email">Email</label>
+                                    <input type="email" class="form-control" id="new_customer_email" name="new_customer_email"
+                                           value="{{ form_data.get('new_customer_email', '') }}">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="new_customer_cpf_cnpj">CPF/CNPJ</label>
+                                    <input type="text" class="form-control" id="new_customer_cpf_cnpj" name="new_customer_cpf_cnpj"
+                                           value="{{ form_data.get('new_customer_cpf_cnpj', '') }}">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="new_customer_phone">Phone</label>
+                                    <input type="text" class="form-control" id="new_customer_phone" name="new_customer_phone"
+                                           value="{{ form_data.get('new_customer_phone', '') }}">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <h4>Subscription Details</h4>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="plan_id">Plan *</label>
+                                    <select class="form-control" id="plan_id" name="plan_id" required>
+                                        <option value="">Select a plan...</option>
+                                        {% for value, label in plan_choices %}
+                                        <option value="{{ value }}" {% if form_data.get('plan_id') == value %}selected{% endif %}>
+                                            {{ label }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="revenue_range_id">Revenue Range *</label>
+                                    <select class="form-control" id="revenue_range_id" name="revenue_range_id" required>
+                                        <option value="">Select revenue range...</option>
+                                        {% for value, label in revenue_range_choices %}
+                                        <option value="{{ value }}" {% if form_data.get('revenue_range_id') == value %}selected{% endif %}>
+                                            {{ label }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="addon_ids">Addons (Optional)</label>
+                            <select class="form-control" id="addon_ids" name="addon_ids" multiple size="5">
+                                {% for value, label in addon_choices %}
+                                <option value="{{ value }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple addons</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="billing_type">Billing Type *</label>
+                            <select class="form-control" id="billing_type" name="billing_type" required>
+                                <option value="">Select billing type...</option>
+                                {% for value, label in billing_type_choices %}
+                                <option value="{{ value }}" {% if form_data.get('billing_type') == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fa fa-link"></i> Generate Checkout Link
+                            </button>
+                            <a href="{{ url_for('admin:index') }}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Toggle between existing and new customer
+document.addEventListener('DOMContentLoaded', function() {
+    const customerSelect = document.getElementById('customer_id');
+    const newCustomerFields = ['new_customer_name', 'new_customer_email', 'new_customer_cpf_cnpj', 'new_customer_phone'];
+    
+    function toggleNewCustomerFields() {
+        const isExistingCustomer = customerSelect.value !== '';
+        newCustomerFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            field.disabled = isExistingCustomer;
+            if (isExistingCustomer) {
+                field.value = '';
+            }
+        });
+    }
+    
+    customerSelect.addEventListener('change', toggleNewCustomerFields);
+    
+    // Enable new customer fields on input
+    newCustomerFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        field.addEventListener('input', function() {
+            if (this.value) {
+                customerSelect.value = '';
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

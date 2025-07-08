@@ -26,3 +26,9 @@ class Payment(Base):
     updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
 
     subscription = relationship("Subscription", back_populates="payments")
+    
+    def __repr__(self):
+        return f"Payment R$ {self.amount:.2f} - {self.status.value}"
+    
+    def __str__(self):
+        return self.__repr__()

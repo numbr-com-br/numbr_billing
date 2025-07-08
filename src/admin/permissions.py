@@ -3,45 +3,36 @@ from typing import Dict, List
 
 
 class Permission(str, Enum):
-    # Customers
     CUSTOMERS_READ = "customers:read"
     CUSTOMERS_WRITE = "customers:write"
     CUSTOMERS_DELETE = "customers:delete"
 
-    # Plans
     PLANS_READ = "plans:read"
     PLANS_WRITE = "plans:write"
     PLANS_DELETE = "plans:delete"
 
-    # Addons
     ADDONS_READ = "addons:read"
     ADDONS_WRITE = "addons:write"
     ADDONS_DELETE = "addons:delete"
 
-    # Subscriptions
     SUBSCRIPTIONS_READ = "subscriptions:read"
     SUBSCRIPTIONS_WRITE = "subscriptions:write"
     SUBSCRIPTIONS_CANCEL = "subscriptions:cancel"
 
-    # Payments
     PAYMENTS_READ = "payments:read"
     PAYMENTS_REFUND = "payments:refund"
 
-    # Webhooks
     WEBHOOKS_READ = "webhooks:read"
 
-    # Reports
     REPORTS_VIEW = "reports:view"
     REPORTS_EXPORT = "reports:export"
 
-    # Admin Management
     ADMIN_USERS_READ = "admin:users:read"
     ADMIN_USERS_WRITE = "admin:users:write"
     ADMIN_ROLES_READ = "admin:roles:read"
     ADMIN_ROLES_WRITE = "admin:roles:write"
 
 
-# Permission descriptions for UI
 PERMISSION_DESCRIPTIONS: Dict[Permission, str] = {
     Permission.CUSTOMERS_READ: "View customers",
     Permission.CUSTOMERS_WRITE: "Create and edit customers",
@@ -67,7 +58,6 @@ PERMISSION_DESCRIPTIONS: Dict[Permission, str] = {
 }
 
 
-# Default system roles
 class SystemRole(str, Enum):
     SUPER_ADMIN = "super_admin"
     ADMIN = "admin"
@@ -76,12 +66,11 @@ class SystemRole(str, Enum):
     VIEWER = "viewer"
 
 
-# Role configurations
 SYSTEM_ROLES: Dict[SystemRole, Dict] = {
     SystemRole.SUPER_ADMIN: {
         "name": "Super Admin",
         "description": "Full system access",
-        "permissions": list(Permission),  # All permissions
+        "permissions": list(Permission),
     },
     SystemRole.ADMIN: {
         "name": "Administrator",
@@ -172,5 +161,4 @@ def get_permission_groups() -> Dict[str, List[Permission]]:
         else:
             groups["Other"].append(perm)
 
-    # Remove empty groups
     return {k: v for k, v in groups.items() if v}

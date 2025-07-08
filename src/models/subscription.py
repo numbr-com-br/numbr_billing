@@ -24,6 +24,12 @@ class Subscription(Base):
     plan = relationship("Plan", back_populates="subscriptions")
     payments = relationship("Payment", back_populates="subscription")
     addons = relationship("SubscriptionAddon", back_populates="subscription")
+    
+    def __repr__(self):
+        return f"Subscription #{self.id[:8]} - {self.status.value}"
+    
+    def __str__(self):
+        return self.__repr__()
 
 
 class SubscriptionAddon(Base):
@@ -37,3 +43,9 @@ class SubscriptionAddon(Base):
 
     subscription = relationship("Subscription", back_populates="addons")
     addon = relationship("Addon", back_populates="subscription_addons")
+    
+    def __repr__(self):
+        return f"SubscriptionAddon - Qty: {self.quantity}"
+    
+    def __str__(self):
+        return self.__repr__()

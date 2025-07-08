@@ -43,30 +43,24 @@ def create_webhook_blueprint():
     @bp.route("/asaas", methods=["POST"])
     @with_db_session
     def handle_asaas_webhook(db: Session):
-        # Get raw body for signature verification
         payload = request.get_data(as_text=True)
         
-        # Verify webhook signature
         signature = request.headers.get("asaas-signature", "")
         if not verify_webhook_signature(payload, signature):
             return jsonify({"detail": "Invalid webhook signature"}), 401
         
-        # Parse JSON
         data = request.get_json()
         event = data.get("event")
         payment_data = data.get("payment", {})
         
-        # Log webhook
         webhook_log = WebhookLog(event=event, payload=data, success=True)
         
         try:
-            # Handle payment events
             if event in ["PAYMENT_CREATED", "PAYMENT_UPDATED", "PAYMENT_CONFIRMED", "PAYMENT_RECEIVED"]:
                 asaas_payment_id = payment_data.get("id")
                 subscription_id = payment_data.get("subscription")
                 
                 if asaas_payment_id and subscription_id:
-                    # Find subscription by Asaas ID
                     result = db.execute(
                         select(Subscription).where(
                             Subscription.asaas_subscription_id == subscription_id
@@ -75,14 +69,12 @@ def create_webhook_blueprint():
                     subscription = result.scalar_one_or_none()
                     
                     if subscription:
-                        # Check if payment already exists
                         result = db.execute(
                             select(Payment).where(Payment.asaas_payment_id == asaas_payment_id)
                         )
                         payment = result.scalar_one_or_none()
                         
                         if not payment:
-                            # Create new payment
                             payment = Payment(
                                 subscription_id=subscription.id,
                                 asaas_payment_id=asaas_payment_id,
@@ -95,7 +87,6 @@ def create_webhook_blueprint():
                             )
                             db.add(payment)
                         else:
-                            # Update existing payment
                             payment.status = map_asaas_payment_status(payment_data.get("status"))
                             if payment_data.get("confirmedDate"):
                                 payment.paid_at = datetime.fromisoformat(
@@ -104,7 +95,6 @@ def create_webhook_blueprint():
                             payment.invoice_number = payment_data.get("invoiceNumber")
                             payment.transaction_receipt = payment_data.get("transactionReceiptUrl")
                         
-                        # Update subscription status based on payment
                         if payment.status == PaymentStatus.RECEIVED:
                             subscription.status = SubscriptionStatus.ACTIVE
                         elif payment.status == PaymentStatus.OVERDUE:

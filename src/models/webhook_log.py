@@ -13,3 +13,10 @@ class WebhookLog(Base):
     success = Column(Boolean, nullable=False, default=True)
     error = Column(Text, nullable=True)
     processed_at = Column(DateTime, nullable=False, server_default=func.now())
+    
+    def __repr__(self):
+        status = "Success" if self.success else "Error"
+        return f"Webhook {self.event} - {status}"
+    
+    def __str__(self):
+        return self.__repr__()

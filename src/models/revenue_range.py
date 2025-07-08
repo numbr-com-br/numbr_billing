@@ -17,3 +17,12 @@ class RevenueRange(Base):
     updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
 
     plan_pricings = relationship("PlanPricing", back_populates="revenue_range")
+    
+    def __repr__(self):
+        if self.max_revenue:
+            return f"{self.name} (R$ {self.min_revenue:,.2f} - R$ {self.max_revenue:,.2f})"
+        else:
+            return f"{self.name} (R$ {self.min_revenue:,.2f}+)"
+    
+    def __str__(self):
+        return self.__repr__()

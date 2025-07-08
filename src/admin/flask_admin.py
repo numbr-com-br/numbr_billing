@@ -91,7 +91,6 @@ class AdminUserView(AuthenticatedModelView):
     
     def scaffold_form(self):
         form_class = super().scaffold_form()
-        # Add password field for creating/editing users
         from wtforms import PasswordField
         from wtforms.validators import Optional
         form_class.password = PasswordField('Password', validators=[Optional()])
@@ -150,16 +149,10 @@ class WebhookLogView(ReadOnlyModelView):
     
 
 def init_admin(app):
-    """Initialize Flask-Admin with authentication and all model views"""
-    
-    # Configure Flask-Admin for Lambda/Zappa deployment
-    # Use CDN for static assets instead of serving locally
     app.config['FLASK_ADMIN_SWATCH'] = 'cerulean'
     
-    # Create admin with proper base URL for Lambda
     base_url = '/admin'
     if os.environ.get('IS_LAMBDA'):
-        # In Lambda, we need to ensure proper URL handling
         app.config['FLASK_ADMIN_USE_CDN'] = True
     
     admin = Admin(
@@ -169,10 +162,8 @@ def init_admin(app):
         index_view=AuthenticatedAdminIndexView()
     )
     
-    # Use a context manager for db_session
     db_session = SessionLocal()
     
-    # Import models
     from src.models.customer import Customer
     from src.models.plan import Plan
     from src.models.addon import Addon
@@ -182,7 +173,6 @@ def init_admin(app):
     from src.models.revenue_range import RevenueRange
     from src.models.plan_pricing import PlanPricing
     
-    # Admin management
     admin.add_view(AdminUserView(
         AdminUser, db_session,
         name='Users',
@@ -197,7 +187,6 @@ def init_admin(app):
         required_permission=Permission.ADMIN_ROLES_READ
     ))
     
-    # Customer management
     admin.add_view(CustomerView(
         Customer, db_session,
         name='Customers',
@@ -205,7 +194,6 @@ def init_admin(app):
         required_permission=Permission.CUSTOMERS_READ
     ))
     
-    # Billing configuration
     admin.add_view(PlanView(
         Plan, db_session,
         name='Plans',
@@ -234,7 +222,6 @@ def init_admin(app):
         required_permission=Permission.PLANS_READ
     ))
     
-    # Subscription management
     admin.add_view(SubscriptionView(
         Subscription, db_session,
         name='Subscriptions',
@@ -249,7 +236,6 @@ def init_admin(app):
         required_permission=Permission.SUBSCRIPTIONS_READ
     ))
     
-    # Payment and logs
     admin.add_view(PaymentView(
         Payment, db_session,
         name='Payments',
@@ -264,14 +250,11 @@ def init_admin(app):
         required_permission=Permission.WEBHOOKS_READ
     ))
     
-    # Important: Close the session after admin initialization
-    # In Lambda, we need to manage connections carefully
     @app.teardown_appcontext
     def close_admin_session(error):
         if hasattr(app, '_admin_db_session'):
             app._admin_db_session.close()
     
-    # Store session reference for cleanup
     app._admin_db_session = db_session
     
     return admin

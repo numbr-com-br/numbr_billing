@@ -1,0 +1,128 @@
+{% extends "admin/custom_base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h3 class="card-title">Checkout Link Generated Successfully!</h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-success">
+                        <h4 class="alert-heading">Success!</h4>
+                        <p>The checkout link has been generated successfully for the following subscription:</p>
+                    </div>
+                    
+                    <h4>Subscription Details</h4>
+                    <table class="table table-bordered">
+                        <tbody>
+                            <tr>
+                                <th width="200">Subscription ID</th>
+                                <td><code>{{ subscription_id }}</code></td>
+                            </tr>
+                            <tr>
+                                <th>Customer</th>
+                                <td>{{ customer.name }} ({{ customer.email }})</td>
+                            </tr>
+                            <tr>
+                                <th>Plan</th>
+                                <td>{{ plan.name }} ({{ plan.cycle.value }})</td>
+                            </tr>
+                            <tr>
+                                <th>Revenue Range</th>
+                                <td>{{ revenue_range }}</td>
+                            </tr>
+                            <tr>
+                                <th>Addons</th>
+                                <td>
+                                    {% if addons %}
+                                        <ul class="mb-0">
+                                            {% for addon in addons %}
+                                            <li>{{ addon.name }} - R$ {{ addon.price }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% else %}
+                                        <em>No addons selected</em>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Total Price</th>
+                                <td><strong>R$ {{ "%.2f"|format(total_price) }}</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <h4>Payment Link</h4>
+                    <div class="form-group">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="payment-link" value="{{ payment_link }}" readonly>
+                            <div class="input-group-append">
+                                <button class="btn btn-primary" type="button" onclick="copyToClipboard()">
+                                    <i class="fa fa-copy"></i> Copy
+                                </button>
+                                <a href="{{ payment_link }}" target="_blank" class="btn btn-success">
+                                    <i class="fa fa-external-link"></i> Open
+                                </a>
+                            </div>
+                        </div>
+                        <small class="form-text text-muted">
+                            Share this link with the customer to complete the payment
+                        </small>
+                    </div>
+                    
+                    <div class="alert alert-info mt-4">
+                        <h5 class="alert-heading">Next Steps:</h5>
+                        <ol class="mb-0">
+                            <li>Share the payment link with the customer</li>
+                            <li>The customer will complete the payment on Asaas</li>
+                            <li>Once payment is confirmed, the subscription will be activated automatically</li>
+                            <li>You can track the payment status in the <a href="{{ url_for('admin:payment:list') }}">Payments</a> section</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="form-group mt-4">
+                        <a href="{{ url_for('admin:checkout-generator:generate_checkout') }}" class="btn btn-primary">
+                            <i class="fa fa-plus"></i> Generate Another Link
+                        </a>
+                        <a href="{{ url_for('admin:subscription:details', pk=subscription_id) }}" class="btn btn-secondary">
+                            <i class="fa fa-eye"></i> View Subscription
+                        </a>
+                        <a href="{{ url_for('admin:index') }}" class="btn btn-light">
+                            <i class="fa fa-home"></i> Back to Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyToClipboard() {
+    const input = document.getElementById('payment-link');
+    input.select();
+    input.setSelectionRange(0, 99999); // For mobile devices
+    
+    try {
+        document.execCommand('copy');
+        
+        // Show success message
+        const button = event.target.closest('button');
+        const originalHtml = button.innerHTML;
+        button.innerHTML = '<i class="fa fa-check"></i> Copied!';
+        button.classList.remove('btn-primary');
+        button.classList.add('btn-success');
+        
+        setTimeout(() => {
+            button.innerHTML = originalHtml;
+            button.classList.remove('btn-success');
+            button.classList.add('btn-primary');
+        }, 2000);
+    } catch (err) {
+        alert('Failed to copy link');
+    }
+}
+</script>
+{% endblock %}

@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
-from jose import jwt, JWTError
+from typing import Optional
+from jose import jwt
 from passlib.context import CryptContext
 from sqlalchemy import select, and_
 from sqlalchemy.orm import selectinload
@@ -8,17 +8,13 @@ from sqlalchemy.orm import selectinload
 from src.database import Session
 from src.models.admin_user import AdminUser, AdminSession
 from src.config import settings
-import uuid
 
-# Security configuration
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# JWT Configuration
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 15
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
-# Use JWT secret key from settings
 JWT_SECRET_KEY = settings.jwt_secret_key
 
 

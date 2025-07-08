@@ -33,16 +33,13 @@ def create_checkout_blueprint():
     @bp.route("/start", methods=["POST"])
     @with_db_session
     def start_checkout(db: Session):
-        # Parse request
         data = request.get_json()
         checkout_request = CheckoutRequest.model_validate(data)
         
-        # Get plan
         plan = db.get(Plan, checkout_request.plan_id)
         if not plan or not plan.is_active:
             return jsonify({"detail": "Plan not found"}), 404
         
-        # Get addons
         addons = []
         if checkout_request.addon_ids:
             result = db.execute(
@@ -53,10 +50,8 @@ def create_checkout_blueprint():
             )
             addons = result.scalars().all()
         
-        # Get plan price based on customer revenue
         plan_price = Decimal("0")
         if checkout_request.customer.annual_revenue is not None:
-            # Find the appropriate revenue range for the customer
             query = (
                 select(PlanPricing)
                 .join(RevenueRange)
@@ -83,19 +78,16 @@ def create_checkout_blueprint():
                 "detail": "Annual revenue is required for pricing calculation"
             }), 400
         
-        # Calculate total price
         total_price = plan_price
         for addon in addons:
             total_price += Decimal(str(addon.price))
         
-        # Create or find customer
         result = db.execute(
             select(Customer).where(Customer.email == checkout_request.customer.email)
         )
         customer = result.scalar_one_or_none()
         
         if customer:
-            # Update customer info
             customer.name = checkout_request.customer.name
             if checkout_request.customer.cpf_cnpj:
                 customer.cpf_cnpj = checkout_request.customer.cpf_cnpj
@@ -104,7 +96,6 @@ def create_checkout_blueprint():
             if checkout_request.customer.annual_revenue:
                 customer.annual_revenue = checkout_request.customer.annual_revenue
         else:
-            # Create new customer
             customer = Customer(
                 name=checkout_request.customer.name,
                 email=checkout_request.customer.email,
@@ -116,7 +107,6 @@ def create_checkout_blueprint():
         
         db.commit()
         
-        # Create customer in Asaas if not exists
         if not customer.asaas_customer_id:
             asaas_customer = asaas_service.create_customer(
                 {
@@ -129,7 +119,6 @@ def create_checkout_blueprint():
             customer.asaas_customer_id = asaas_customer["id"]
             db.commit()
         
-        # Create subscription
         subscription = Subscription(
             customer_id=customer.id, 
             plan_id=plan.id, 
@@ -138,7 +127,6 @@ def create_checkout_blueprint():
         db.add(subscription)
         db.commit()
         
-        # Add subscription addons
         for addon in addons:
             subscription_addon = SubscriptionAddon(
                 subscription_id=subscription.id, 
@@ -149,7 +137,6 @@ def create_checkout_blueprint():
         
         db.commit()
         
-        # Create subscription in Asaas
         next_due_date = datetime.now() + timedelta(days=1)
         asaas_subscription = asaas_service.create_subscription(
             {
@@ -162,12 +149,10 @@ def create_checkout_blueprint():
             }
         )
         
-        # Update subscription with Asaas ID
         subscription.asaas_subscription_id = asaas_subscription["id"]
         subscription.next_due_date = datetime.fromisoformat(asaas_subscription["nextDueDate"])
         db.commit()
         
-        # Generate payment link
         payment_link = f"https://www.asaas.com/b/pay/{asaas_subscription['id']}"
         
         response = CheckoutResponse(

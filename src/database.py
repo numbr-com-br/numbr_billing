@@ -2,7 +2,6 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from src.config import settings
 
-# Configure naming convention for snake_case
 convention = {
     "ix": "ix_%(column_0_label)s",
     "uq": "uq_%(table_name)s_%(column_0_name)s",
@@ -14,7 +13,6 @@ convention = {
 Base = declarative_base()
 Base.metadata.naming_convention = convention
 
-# Create synchronous engine
 engine = create_engine(
     settings.database_url, 
     echo=False, 
@@ -35,7 +33,6 @@ def get_db():
 
 
 def close_db_session(error=None):
-    """Close database session at end of request - Flask teardown handler"""
     from flask import g
     db = g.pop('db', None)
     if db is not None:
