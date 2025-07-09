@@ -56,10 +56,11 @@ class AdminUser(Base):
         if self.is_superuser:
             return True
         return permission in self.permissions
-    
+
     def set_password(self, password: str) -> None:
         """Set user password"""
         from src.admin.auth import get_password_hash
+
         self.password_hash = get_password_hash(password)
 
 

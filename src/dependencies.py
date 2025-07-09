@@ -4,7 +4,7 @@ from src.database import SessionLocal
 
 
 def get_db_session():
-    if 'db' not in g:
+    if "db" not in g:
         g.db = SessionLocal()
     return g.db
 
@@ -20,4 +20,5 @@ def with_db_session(f):
             raise
         finally:
             db.commit()
+
     return decorated_function

@@ -1,5 +1,5 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from sqlalchemy.orm import declarative_base, sessionmaker
 from src.config import settings
 
 convention = {
@@ -14,14 +14,11 @@ Base = declarative_base()
 Base.metadata.naming_convention = convention
 
 engine = create_engine(
-    settings.database_url, 
-    echo=False, 
-    pool_pre_ping=True, 
-    pool_size=5, 
-    max_overflow=10
+    settings.database_url, echo=False, pool_pre_ping=True, pool_size=5, max_overflow=10
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Session = SessionLocal  # Alias for compatibility
 
 
 def get_db():
@@ -34,6 +31,7 @@ def get_db():
 
 def close_db_session(error=None):
     from flask import g
-    db = g.pop('db', None)
+
+    db = g.pop("db", None)
     if db is not None:
         db.close()

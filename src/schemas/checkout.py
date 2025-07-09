@@ -22,6 +22,7 @@ class CheckoutRequest(BaseModel):
 
 class CheckoutResponse(BaseModel):
     subscription_id: str
+    customer_id: str
     payment_link: str
     total_price: Decimal
 

@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
 from typing import Optional
-from jose import jwt
 from passlib.context import CryptContext
 from sqlalchemy import select, and_
 from sqlalchemy.orm import selectinload
@@ -34,14 +33,14 @@ def authenticate_user(db: Session, email: str, password: str) -> Optional[AdminU
         select(AdminUser).where(AdminUser.email == email).options(selectinload(AdminUser.roles))
     )
     user = result.scalar_one_or_none()
-    
+
     if not user:
         return None
     if not verify_password(password, user.password_hash):
         return None
     if not user.is_active:
         return None
-    
+
     return user
 
 
@@ -58,9 +57,9 @@ def verify_token_session(db: Session, jti: str) -> bool:
     session_result = db.execute(
         select(AdminSession).where(
             and_(
-                AdminSession.token_jti == jti, 
+                AdminSession.token_jti == jti,
                 AdminSession.revoked_at.is_(None),
-                AdminSession.expires_at > datetime.utcnow()
+                AdminSession.expires_at > datetime.utcnow(),
             )
         )
     )
@@ -68,8 +67,11 @@ def verify_token_session(db: Session, jti: str) -> bool:
 
 
 def create_session_record(
-    db: Session, user: AdminUser, token_jti: str, ip_address: Optional[str] = None, 
-    user_agent: Optional[str] = None
+    db: Session,
+    user: AdminUser,
+    token_jti: str,
+    ip_address: Optional[str] = None,
+    user_agent: Optional[str] = None,
 ) -> AdminSession:
     """Create a session record for tracking"""
     session = AdminSession(
@@ -79,7 +81,7 @@ def create_session_record(
         user_agent=user_agent,
         expires_at=datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
     )
-    
+
     db.add(session)
     db.commit()
     return session
@@ -89,18 +91,16 @@ def logout_session(db: Session, jti: str) -> None:
     """Mark session as logged out"""
     result = db.execute(select(AdminSession).where(AdminSession.token_jti == jti))
     session = result.scalar_one_or_none()
-    
+
     if session:
-        session.logged_out_at = datetime.utcnow()
+        session.revoked_at = datetime.utcnow()
         db.commit()
 
 
 def cleanup_expired_sessions(db: Session) -> int:
     """Clean up expired sessions - should be run periodically"""
     from sqlalchemy import delete
-    
-    result = db.execute(
-        delete(AdminSession).where(AdminSession.expires_at < datetime.utcnow())
-    )
+
+    result = db.execute(delete(AdminSession).where(AdminSession.expires_at < datetime.utcnow()))
     db.commit()
     return result.rowcount

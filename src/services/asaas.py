@@ -11,17 +11,13 @@ class AsaasService:
 
     def create_customer(self, data: Dict[str, Any]) -> Dict[str, Any]:
         with httpx.Client() as client:
-            response = client.post(
-                f"{self.base_url}/customers", json=data, headers=self.headers
-            )
+            response = client.post(f"{self.base_url}/customers", json=data, headers=self.headers)
             response.raise_for_status()
             return response.json()
 
     def get_customer(self, customer_id: str) -> Dict[str, Any]:
         with httpx.Client() as client:
-            response = client.get(
-                f"{self.base_url}/customers/{customer_id}", headers=self.headers
-            )
+            response = client.get(f"{self.base_url}/customers/{customer_id}", headers=self.headers)
             response.raise_for_status()
             return response.json()
 
@@ -50,9 +46,7 @@ class AsaasService:
 
     def get_payment(self, payment_id: str) -> Dict[str, Any]:
         with httpx.Client() as client:
-            response = client.get(
-                f"{self.base_url}/payments/{payment_id}", headers=self.headers
-            )
+            response = client.get(f"{self.base_url}/payments/{payment_id}", headers=self.headers)
             response.raise_for_status()
             return response.json()
 
@@ -67,9 +61,7 @@ class AsaasService:
 
     def create_payment_link(self, data: Dict[str, Any]) -> Dict[str, Any]:
         with httpx.Client() as client:
-            response = client.post(
-                f"{self.base_url}/paymentLinks", json=data, headers=self.headers
-            )
+            response = client.post(f"{self.base_url}/paymentLinks", json=data, headers=self.headers)
             response.raise_for_status()
             return response.json()
 

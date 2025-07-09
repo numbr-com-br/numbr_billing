@@ -173,6 +173,7 @@ The app uses different `.env` files:
 - Asaas sandbox API for development, production API requires real credentials
 - Webhook endpoint `/webhooks/asaas` must be accessible to Asaas servers
 - Environment variables loaded from `.env` file in development
+- **ADMIN PANEL**: Este projeto usa EXCLUSIVAMENTE Flask-Admin. NUNCA use SQLAdmin ou outras bibliotecas de admin
 
 ## AWS Lambda Deployment with Zappa
 
@@ -184,7 +185,7 @@ The project is deployed as a serverless application on AWS Lambda using Zappa:
 - `.github/workflows/deploy.yml` - Automated deployment pipeline
 
 ### Key Files for Admin Panel
-- `src/admin/flask_admin.py` - Flask-Admin configuration and views
+- `src/admin/flask_admin.py` - Flask-Admin configuration and views (ÚNICO ARQUIVO DE ADMIN)
 - `src/templates/admin/login.html` - Custom login page
 - `src/templates/admin/custom_base.html` - Custom base template (optional)
 
@@ -203,8 +204,8 @@ The project is deployed as a serverless application on AWS Lambda using Zappa:
 5. Database migrations run automatically
 
 ### Lambda Endpoints
-Zappa automatically generates API Gateway endpoints:
-- **Development**: https://n61x7gkngj.execute-api.us-east-1.amazonaws.com/dev
+- **Development (Custom Domain)**: https://billing-dev.numbr.com.br ✅
+- **Development (API Gateway)**: https://k9rpmr4sn5.execute-api.us-east-1.amazonaws.com/dev
 - **Staging**: TBD
 - **Production**: TBD
 
@@ -215,10 +216,11 @@ Zappa automatically generates API Gateway endpoints:
 
 ### Lambda Considerations
 - Database connections use SQLAlchemy with proper pooling
-- Memory allocation: 1024MB (dev/staging), 2048MB (prod)
-- Timeout: 30 seconds
-- Keep warm enabled in production
+- Memory allocation: 2048MB (all environments)
+- Timeout: 300 seconds (5 minutes)
+- Keep warm enabled (runs every 4 minutes)
 - Slim handler enabled to reduce package size
+- Custom domain configured with CloudFront (EDGE)
 
 ### Local Deployment
 ```bash
@@ -250,8 +252,7 @@ The GitHub repository variables store DATABASE_URL with `mysql://` protocol, but
 - No manual AWS configuration needed
 
 ### Custom Domains
-Domains will be configured in `zappa_settings.json` and managed by Zappa:
-- **Development**: https://billing-dev.numbr.com.br (TBD)
+- **Development**: https://billing-dev.numbr.com.br ✅
 - **Staging**: https://billing-staging.numbr.com.br (TBD)
 - **Production**: https://billing.numbr.com.br (TBD)
 
@@ -310,6 +311,7 @@ The deployment pipeline requires several secrets and variables configured in Git
 - `GET /api/checkout/revenue-ranges` - List all revenue ranges
 - `POST /api/checkout/start` - Create checkout session
   ```json
+  Request:
   {
     "customer": {
       "name": "string",
@@ -322,7 +324,92 @@ The deployment pipeline requires several secrets and variables configured in Git
     "addon_ids": ["string"],
     "billing_type": "CREDIT_CARD" | "BOLETO" | "PIX"
   }
+  
+  Response:
+  {
+    "subscription_id": "string",
+    "customer_id": "string",
+    "payment_link": "string",
+    "total_price": "decimal"
+  }
   ```
+
+### Customers API
+- `POST /api/customers` - Create or update customer
+  ```json
+  Request:
+  {
+    "name": "string",
+    "email": "string",
+    "cpf_cnpj": "string",
+    "phone": "string",
+    "annual_revenue": "decimal"
+  }
+  
+  Response:
+  {
+    "id": "string",
+    "name": "string",
+    "email": "string",
+    "cpf_cnpj": "string",
+    "phone": "string",
+    "annual_revenue": "decimal",
+    "asaas_customer_id": "string",
+    "created_at": "datetime",
+    "updated_at": "datetime"
+  }
+  ```
+- `GET /api/customers/{customer_id}` - Get customer by ID
+- `GET /api/customers/email/{email}` - Get customer by email
+- `PUT /api/customers/{customer_id}` - Update customer
+- `GET /api/customers/{customer_id}/subscriptions` - Get customer's subscriptions
+- `GET /api/customers/email/{email}/subscriptions` - Get customer's subscriptions by email
+
+### Subscriptions API
+- `GET /api/subscriptions/{subscription_id}` - Get subscription details
+  ```json
+  Response:
+  {
+    "id": "string",
+    "customer_id": "string",
+    "customer_name": "string",
+    "customer_email": "string",
+    "plan": {
+      "id": "string",
+      "name": "string",
+      "description": "string",
+      "cycle": "MONTHLY|YEARLY"
+    },
+    "status": "PENDING|ACTIVE|INACTIVE|CANCELED",
+    "start_date": "datetime",
+    "next_due_date": "datetime",
+    "canceled_at": "datetime",
+    "asaas_subscription_id": "string",
+    "addons": [
+      {
+        "id": "string",
+        "name": "string",
+        "price": "decimal",
+        "quantity": "integer",
+        "type": "string"
+      }
+    ],
+    "total_price": "decimal",
+    "recent_payments": [
+      {
+        "id": "string",
+        "amount": "decimal",
+        "status": "string",
+        "due_date": "datetime",
+        "paid_at": "datetime",
+        "billing_type": "string"
+      }
+    ]
+  }
+  ```
+- `GET /api/subscriptions/{subscription_id}/status` - Get subscription status only
+- `POST /api/subscriptions/{subscription_id}/cancel` - Cancel subscription
+- `GET /api/subscriptions/active` - List all active subscriptions (with pagination)
 
 ### Webhooks
 - `POST /webhooks/asaas` - Receive payment notifications from Asaas
@@ -330,6 +417,8 @@ The deployment pipeline requires several secrets and variables configured in Git
   - Updates payment and subscription status
 
 ## Admin Panel
+
+**IMPORTANTE**: Este projeto usa EXCLUSIVAMENTE Flask-Admin para o painel administrativo. NÃO use SQLAdmin ou qualquer outra biblioteca de admin. Todas as implementações de admin devem ser feitas com Flask-Admin.
 
 The project includes a comprehensive admin panel powered by Flask-Admin with JWT-based authentication:
 
@@ -449,6 +538,8 @@ The project was migrated from FastAPI to Flask for better Zappa compatibility:
 
 ## Flask-Admin on AWS Lambda
 
+**LEMBRETE CRÍTICO**: Este projeto usa EXCLUSIVAMENTE Flask-Admin. Qualquer implementação de admin deve ser feita em `src/admin/flask_admin.py`. NÃO crie novos arquivos de admin ou use outras bibliotecas.
+
 ### Known Issues and Solutions
 
 Flask-Admin can have issues running on AWS Lambda due to static file serving limitations. The application has been configured to handle this:
@@ -477,12 +568,14 @@ If the admin panel shows 500 errors:
 ## AWS Lambda Deployment with Zappa
 
 ### Current Deployment Status
-- **Development Environment**: Successfully deployed
+- **Development Environment**: Successfully deployed ✅
 - **Custom Domain**: https://billing-dev.numbr.com.br ✅
-- **API Gateway URL**: https://py4cwe15d0.execute-api.us-east-1.amazonaws.com/dev
+- **API Gateway URL**: https://k9rpmr4sn5.execute-api.us-east-1.amazonaws.com/dev
 - **Lambda Function**: numbr-billing-dev
 - **S3 Bucket**: numbr-billing-zappa-deployments
 - **Certificate**: Wildcard SSL certificate (*.numbr.com.br)
+- **CloudFront Distribution**: dphlj5snz1s5j.cloudfront.net
+- **Endpoint Type**: EDGE (via CloudFront)
 
 ### Deployment Commands
 ```bash
@@ -503,11 +596,12 @@ poetry run zappa undeploy dev
 ```
 
 ### Working Endpoints
-- **Root**: https://billing-dev.numbr.com.br/
-- **Health**: https://billing-dev.numbr.com.br/health
-- **Admin Panel**: https://billing-dev.numbr.com.br/admin/
-- **Checkout Plans**: https://billing-dev.numbr.com.br/api/checkout/plans
-- **API Docs**: https://billing-dev.numbr.com.br/docs
+- **Root**: https://billing-dev.numbr.com.br/ ✅
+- **Health**: https://billing-dev.numbr.com.br/health ✅
+- **Admin Panel**: https://billing-dev.numbr.com.br/admin/ ✅
+- **Admin Login**: https://billing-dev.numbr.com.br/api/admin/auth/login ✅
+- **Checkout Plans**: https://billing-dev.numbr.com.br/api/checkout/plans ✅
+- **API Docs**: https://billing-dev.numbr.com.br/docs ✅
 
 ### Important Notes
 1. The root endpoint "/" must return a valid response for Zappa deployment to succeed

@@ -9,142 +9,141 @@ from src.routers import checkout, webhooks
 from src.routers.admin_auth import create_admin_auth_blueprint
 from src.routers.admin_users import create_admin_users_blueprint
 from src.routers.admin_roles import create_admin_roles_blueprint
+from src.routers.customers import create_customers_blueprint
+from src.routers.subscriptions import create_subscriptions_blueprint
 from src.database import engine, Base, close_db_session
 from src.config import settings
 from src.admin.flask_admin import init_admin
 
 
 def create_app():
-    app = Flask(__name__, template_folder='templates')
-    
-    app.config['SECRET_KEY'] = settings.jwt_secret_key
-    app.config['SQLALCHEMY_DATABASE_URI'] = settings.database_url
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    
-    if os.environ.get('IS_LAMBDA'):
-        app.config['IS_LAMBDA'] = True
-        app.config['PROPAGATE_EXCEPTIONS'] = True
-        app.config['FLASK_ADMIN_USE_CDN'] = True
-    
-    app.config['JWT_SECRET_KEY'] = settings.jwt_secret_key
-    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(minutes=15)
-    app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=7)
-    app.config['JWT_TOKEN_LOCATION'] = ['headers', 'cookies']
-    app.config['JWT_COOKIE_SECURE'] = False  # Set to True in production
-    app.config['JWT_COOKIE_CSRF_PROTECT'] = False  # Enable in production
-    
-    jwt = JWTManager(app)
-    
+    app = Flask(__name__, template_folder="templates")
+
+    app.config["SECRET_KEY"] = settings.jwt_secret_key
+    app.config["SQLALCHEMY_DATABASE_URI"] = settings.database_url
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+    if os.environ.get("IS_LAMBDA"):
+        app.config["IS_LAMBDA"] = True
+        app.config["PROPAGATE_EXCEPTIONS"] = True
+        app.config["FLASK_ADMIN_USE_CDN"] = True
+
+    app.config["JWT_SECRET_KEY"] = settings.jwt_secret_key
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(minutes=15)
+    app.config["JWT_REFRESH_TOKEN_EXPIRES"] = timedelta(days=7)
+    app.config["JWT_TOKEN_LOCATION"] = ["headers", "cookies"]
+    app.config["JWT_COOKIE_SECURE"] = False  # Set to True in production
+    app.config["JWT_COOKIE_CSRF_PROTECT"] = False  # Enable in production
+
+    JWTManager(app)
+
     CORS(app, origins=["*"], allow_headers=["*"], methods=["*"])
-    
+
     @app.context_processor
     def inject_user():
         from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
+
         try:
             verify_jwt_in_request(optional=True)
             user_id = get_jwt_identity()
             if user_id:
                 from src.database import SessionLocal
                 from src.models.admin_user import AdminUser
+
                 db = SessionLocal()
                 try:
                     user = db.query(AdminUser).filter_by(id=user_id).first()
                     return dict(current_user=user)
                 finally:
                     db.close()
-        except:
+        except Exception:
             pass
         return dict(current_user=None)
-    
+
     # Register blueprints
     app.register_blueprint(checkout.create_checkout_blueprint(), url_prefix="/api/checkout")
     app.register_blueprint(webhooks.create_webhook_blueprint(), url_prefix="/webhooks")
-    
+    app.register_blueprint(create_customers_blueprint(), url_prefix="/api/customers")
+    app.register_blueprint(create_subscriptions_blueprint(), url_prefix="/api/subscriptions")
+
     app.register_blueprint(create_admin_auth_blueprint(), url_prefix="/api/admin/auth")
     app.register_blueprint(create_admin_users_blueprint(), url_prefix="/api/admin/users")
     app.register_blueprint(create_admin_roles_blueprint(), url_prefix="/api/admin/roles")
-    
-    if not os.environ.get('SKIP_FLASK_ADMIN'):
+
+    if not os.environ.get("SKIP_FLASK_ADMIN"):
         try:
             init_admin(app)
         except Exception as e:
             print(f"Warning: Flask-Admin initialization failed: {e}")
             import traceback
+
             traceback.print_exc()
-    
-    @app.route('/')
+
+    @app.route("/")
     def index():
-        return {
-            "message": "Numbr Billing API",
-            "version": "1.0.0",
-            "docs": "/docs"
-        }
-    
-    @app.route('/health')
+        return {"message": "Numbr Billing API", "version": "1.0.0", "docs": "/docs"}
+
+    @app.route("/health")
     def health():
-        return {
-            "status": "healthy",
-            "timestamp": datetime.now().isoformat()
-        }
-    
-    @app.route('/test')
+        return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+    @app.route("/test")
     def test():
         return {
             "message": "Flask app is running!",
-            "environment": os.environ.get("ENVIRONMENT", "unknown")
+            "environment": os.environ.get("ENVIRONMENT", "unknown"),
         }
-    
-    @app.route('/diag')
+
+    @app.route("/diag")
     def diag():
         return {
             "message": "Diagnostic info",
-            "is_lambda": str(app.config.get('IS_LAMBDA', False)),
+            "is_lambda": str(app.config.get("IS_LAMBDA", False)),
             "environment": os.environ.get("ENVIRONMENT", "unknown"),
-            "skip_admin": os.environ.get("SKIP_FLASK_ADMIN", "false")
+            "skip_admin": os.environ.get("SKIP_FLASK_ADMIN", "false"),
         }
-    
-    @app.route('/docs')
+
+    @app.route("/docs")
     def docs():
         return {
             "openapi": "3.0.0",
-            "info": {
-                "title": "Numbr Billing API",
-                "version": "1.0.0"
-            },
+            "info": {"title": "Numbr Billing API", "version": "1.0.0"},
             "paths": {
                 "/": {"get": {"summary": "API Info"}},
                 "/health": {"get": {"summary": "Health Check"}},
                 "/api/checkout/plans": {"get": {"summary": "List Plans"}},
                 "/api/checkout/start": {"post": {"summary": "Start Checkout"}},
-                "/admin/": {"get": {"summary": "Admin Panel (requires auth)"}}
-            }
+                "/admin/": {"get": {"summary": "Admin Panel (requires auth)"}},
+            },
         }
-    
+
     with app.app_context():
         Base.metadata.create_all(bind=engine)
-    
+
     app.teardown_appcontext(close_db_session)
-    
+
     @app.errorhandler(500)
     def internal_error(error):
         import traceback
+
         print(f"Internal Server Error: {error}")
         traceback.print_exc()
         return {
             "error": "Internal server error",
-            "message": str(error) if app.debug else "An error occurred"
+            "message": str(error) if app.debug else "An error occurred",
         }, 500
-    
+
     @app.errorhandler(Exception)
     def handle_exception(e):
         import traceback
+
         print(f"Unhandled exception: {e}")
         traceback.print_exc()
         return {
             "error": "Server error",
-            "message": str(e) if app.debug else "An error occurred"
+            "message": str(e) if app.debug else "An error occurred",
         }, 500
-    
+
     return app
 
 

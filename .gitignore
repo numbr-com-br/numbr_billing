@@ -41,9 +41,14 @@ htmlcov/
 .tox/
 .hypothesis/
 
+# Ruff
+.ruff_cache/
+
 # Database
 *.db
 *.sqlite3
+
+# Alembic - only ignore compiled files, not migrations
 alembic/versions/*.pyc
 
 # Serverless
@@ -60,4 +65,5 @@ numbr-billing-*.tar.gz
 Thumbs.db
 
 # Local files
-.localfiles/cookies.txt
+.localfiles/
+.claude/

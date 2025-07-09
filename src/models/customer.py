@@ -19,9 +19,9 @@ class Customer(Base):
     updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
 
     subscriptions = relationship("Subscription", back_populates="customer")
-    
+
     def __repr__(self):
         return f"{self.name} ({self.email})"
-    
+
     def __str__(self):
         return self.__repr__()

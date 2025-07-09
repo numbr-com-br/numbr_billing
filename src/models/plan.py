@@ -20,9 +20,9 @@ class Plan(Base):
 
     subscriptions = relationship("Subscription", back_populates="plan")
     plan_pricings = relationship("PlanPricing", back_populates="plan", cascade="all, delete-orphan")
-    
+
     def __repr__(self):
         return f"{self.name} ({self.cycle.value})"
-    
+
     def __str__(self):
         return self.__repr__()

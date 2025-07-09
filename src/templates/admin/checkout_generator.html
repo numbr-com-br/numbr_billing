@@ -1,6 +1,6 @@
-{% extends "admin/custom_base.html" %}
+{% extends "admin/master.html" %}
 
-{% block content %}
+{% block body %}
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
@@ -19,7 +19,7 @@
                     </div>
                     {% endif %}
                     
-                    <form method="post" action="{{ url_for('admin:checkout-generator:generate_checkout') }}">
+                    <form method="post" action="">
                         <h4>Customer Information</h4>
                         <div class="form-group">
                             <label for="customer_id">Select Existing Customer</label>
@@ -126,7 +126,7 @@
                             <button type="submit" class="btn btn-primary">
                                 <i class="fa fa-link"></i> Generate Checkout Link
                             </button>
-                            <a href="{{ url_for('admin:index') }}" class="btn btn-secondary">Cancel</a>
+                            <a href="{{ url_for('admin.index') }}" class="btn btn-secondary">Cancel</a>
                         </div>
                     </form>
                 </div>
@@ -165,4 +165,4 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
-{% endblock %}
+{% endblock body %}

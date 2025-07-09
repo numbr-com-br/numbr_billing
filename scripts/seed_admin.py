@@ -1,4 +1,3 @@
-import asyncio
 import sys
 from pathlib import Path
 
@@ -6,17 +5,17 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from sqlalchemy import select
-from src.database import AsyncSessionLocal
+from src.database import SessionLocal
 from src.models.admin_user import AdminUser, AdminRole
 from src.admin.permissions import Permission, SYSTEM_ROLES
 from src.admin.auth import get_password_hash
 
 
-async def create_system_roles():
+def create_system_roles():
     """Create system roles if they don't exist"""
-    async with AsyncSessionLocal() as db:
+    with SessionLocal() as db:
         # Check if roles already exist
-        existing_roles = await db.execute(select(AdminRole.name))
+        existing_roles = db.execute(select(AdminRole.name))
         existing_role_names = {role[0] for role in existing_roles}
         
         roles_created = []
@@ -32,7 +31,7 @@ async def create_system_roles():
                 roles_created.append(role_name)
         
         if roles_created:
-            await db.commit()
+            db.commit()
             print(f"✅ Created system roles: {', '.join(roles_created)}")
         else:
             print("ℹ️  System roles already exist")
@@ -40,11 +39,11 @@ async def create_system_roles():
         return roles_created
 
 
-async def create_superuser(email: str, password: str):
+def create_superuser(email: str, password: str):
     """Create a superuser account"""
-    async with AsyncSessionLocal() as db:
+    with SessionLocal() as db:
         # Check if user already exists
-        result = await db.execute(select(AdminUser).where(AdminUser.email == email))
+        result = db.execute(select(AdminUser).where(AdminUser.email == email))
         existing_user = result.scalar_one_or_none()
         
         if existing_user:
@@ -61,7 +60,7 @@ async def create_superuser(email: str, password: str):
         )
         
         # Get super admin role
-        role_result = await db.execute(
+        role_result = db.execute(
             select(AdminRole).where(AdminRole.name == "Super Admin")
         )
         super_admin_role = role_result.scalar_one_or_none()
@@ -70,17 +69,17 @@ async def create_superuser(email: str, password: str):
             superuser.roles.append(super_admin_role)
         
         db.add(superuser)
-        await db.commit()
+        db.commit()
         
         print(f"✅ Created superuser: {email}")
 
 
-async def main():
+def main():
     """Main function to seed admin data"""
     print("🌱 Seeding admin data...")
     
     # Create system roles
-    await create_system_roles()
+    create_system_roles()
     
     # Create default superuser
     # In production, these should come from environment variables
@@ -88,7 +87,7 @@ async def main():
     default_password = "AdminNumbr2025!"
     
     print(f"\n📧 Creating superuser with email: {default_email}")
-    await create_superuser(default_email, default_password)
+    create_superuser(default_email, default_password)
     
     print("\n✨ Admin seeding completed!")
     print("\n🔐 Login credentials:")
@@ -98,4 +97,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

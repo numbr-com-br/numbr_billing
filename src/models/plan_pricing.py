@@ -20,9 +20,9 @@ class PlanPricing(Base):
 
     plan = relationship("Plan", back_populates="plan_pricings")
     revenue_range = relationship("RevenueRange", back_populates="plan_pricings")
-    
+
     def __repr__(self):
         return f"Pricing R$ {self.price:.2f}"
-    
+
     def __str__(self):
         return self.__repr__()

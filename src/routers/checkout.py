@@ -28,28 +28,27 @@ from src.enums import SubscriptionStatus
 
 
 def create_checkout_blueprint():
-    bp = Blueprint('checkout', __name__)
-    
+    bp = Blueprint("checkout", __name__)
+
     @bp.route("/start", methods=["POST"])
     @with_db_session
     def start_checkout(db: Session):
         data = request.get_json()
         checkout_request = CheckoutRequest.model_validate(data)
-        
+
         plan = db.get(Plan, checkout_request.plan_id)
         if not plan or not plan.is_active:
             return jsonify({"detail": "Plan not found"}), 404
-        
+
         addons = []
         if checkout_request.addon_ids:
             result = db.execute(
                 select(Addon).where(
-                    Addon.id.in_(checkout_request.addon_ids), 
-                    Addon.is_active.is_(True)
+                    Addon.id.in_(checkout_request.addon_ids), Addon.is_active.is_(True)
                 )
             )
             addons = result.scalars().all()
-        
+
         plan_price = Decimal("0")
         if checkout_request.customer.annual_revenue is not None:
             query = (
@@ -66,27 +65,25 @@ def create_checkout_blueprint():
             )
             result = db.execute(query)
             plan_pricing = result.scalar_one_or_none()
-            
+
             if not plan_pricing:
-                return jsonify({
-                    "detail": "No pricing available for the specified revenue range"
-                }), 400
-            
+                return jsonify(
+                    {"detail": "No pricing available for the specified revenue range"}
+                ), 400
+
             plan_price = Decimal(str(plan_pricing.price))
         else:
-            return jsonify({
-                "detail": "Annual revenue is required for pricing calculation"
-            }), 400
-        
+            return jsonify({"detail": "Annual revenue is required for pricing calculation"}), 400
+
         total_price = plan_price
         for addon in addons:
             total_price += Decimal(str(addon.price))
-        
+
         result = db.execute(
             select(Customer).where(Customer.email == checkout_request.customer.email)
         )
         customer = result.scalar_one_or_none()
-        
+
         if customer:
             customer.name = checkout_request.customer.name
             if checkout_request.customer.cpf_cnpj:
@@ -104,9 +101,9 @@ def create_checkout_blueprint():
                 annual_revenue=checkout_request.customer.annual_revenue,
             )
             db.add(customer)
-        
+
         db.commit()
-        
+
         if not customer.asaas_customer_id:
             asaas_customer = asaas_service.create_customer(
                 {
@@ -118,25 +115,21 @@ def create_checkout_blueprint():
             )
             customer.asaas_customer_id = asaas_customer["id"]
             db.commit()
-        
+
         subscription = Subscription(
-            customer_id=customer.id, 
-            plan_id=plan.id, 
-            status=SubscriptionStatus.PENDING
+            customer_id=customer.id, plan_id=plan.id, status=SubscriptionStatus.PENDING
         )
         db.add(subscription)
         db.commit()
-        
+
         for addon in addons:
             subscription_addon = SubscriptionAddon(
-                subscription_id=subscription.id, 
-                addon_id=addon.id, 
-                quantity=1
+                subscription_id=subscription.id, addon_id=addon.id, quantity=1
             )
             db.add(subscription_addon)
-        
+
         db.commit()
-        
+
         next_due_date = datetime.now() + timedelta(days=1)
         asaas_subscription = asaas_service.create_subscription(
             {
@@ -148,21 +141,22 @@ def create_checkout_blueprint():
                 "description": f"{plan.name} subscription",
             }
         )
-        
+
         subscription.asaas_subscription_id = asaas_subscription["id"]
         subscription.next_due_date = datetime.fromisoformat(asaas_subscription["nextDueDate"])
         db.commit()
-        
+
         payment_link = f"https://www.asaas.com/b/pay/{asaas_subscription['id']}"
-        
+
         response = CheckoutResponse(
-            subscription_id=subscription.id, 
-            payment_link=payment_link, 
+            subscription_id=subscription.id,
+            customer_id=customer.id,
+            payment_link=payment_link,
             total_price=total_price
         )
-        
+
         return jsonify(response.model_dump())
-    
+
     @bp.route("/plans", methods=["GET"])
     @with_db_session
     def get_plans(db: Session):
@@ -173,7 +167,7 @@ def create_checkout_blueprint():
             .order_by(Plan.name)
         )
         plans = result.scalars().all()
-        
+
         plan_responses = []
         for plan in plans:
             pricing_list = []
@@ -187,7 +181,7 @@ def create_checkout_blueprint():
                         price=pp.price,
                     )
                 )
-            
+
             plan_responses.append(
                 PlanResponse(
                     id=plan.id,
@@ -198,17 +192,15 @@ def create_checkout_blueprint():
                     pricing=pricing_list,
                 )
             )
-        
+
         return jsonify([pr.model_dump() for pr in plan_responses])
-    
+
     @bp.route("/addons", methods=["GET"])
     @with_db_session
     def get_addons(db: Session):
-        result = db.execute(
-            select(Addon).where(Addon.is_active.is_(True)).order_by(Addon.price)
-        )
+        result = db.execute(select(Addon).where(Addon.is_active.is_(True)).order_by(Addon.price))
         addons = result.scalars().all()
-        
+
         addon_responses = [
             AddonResponse(
                 id=addon.id,
@@ -219,15 +211,15 @@ def create_checkout_blueprint():
             )
             for addon in addons
         ]
-        
+
         return jsonify([ar.model_dump() for ar in addon_responses])
-    
+
     @bp.route("/revenue-ranges", methods=["GET"])
     @with_db_session
     def get_revenue_ranges(db: Session):
         result = db.execute(select(RevenueRange).order_by(RevenueRange.sort_order))
         ranges = result.scalars().all()
-        
+
         range_responses = [
             RevenueRangeResponse(
                 id=range.id,
@@ -238,7 +230,7 @@ def create_checkout_blueprint():
             )
             for range in ranges
         ]
-        
+
         return jsonify([rr.model_dump() for rr in range_responses])
-    
+
     return bp
