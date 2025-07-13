@@ -108,6 +108,28 @@ The billing system supports dynamic pricing based on customer annual revenue:
    - `annual_revenue` field stores customer's yearly revenue
    - Required during checkout to determine applicable pricing
 
+### Service Layer Architecture
+
+The application follows a clean service layer pattern with separated concerns:
+
+1. **Service Layer** (`src/services/`)
+   - **CustomerService**: Handles customer creation, updates, and queries
+   - **SubscriptionService**: Manages subscription lifecycle and cancellations
+   - **CheckoutService**: Orchestrates the complete checkout flow
+   - **PricingService**: Calculates prices based on revenue ranges
+   - **CatalogService**: Manages plans, addons, and revenue range queries
+   - **AsaasService**: External API integration with Asaas payment gateway
+
+2. **Utility Layer** (`src/utils/`)
+   - **response_builders.py**: Centralized response building to eliminate code duplication
+   - Builds consistent subscription responses with calculated totals
+
+3. **Router Layer** (`src/routers/`)
+   - Thin HTTP layer with minimal business logic
+   - Flask blueprints for modular organization
+   - All business logic delegated to service layer
+   - Clean separation of concerns
+
 ### Core Services Integration
 
 The application integrates these main systems:
@@ -132,9 +154,13 @@ The application integrates these main systems:
 
 ### Request Flow
 
-1. **Checkout Flow** (`src/routers/checkout.py`)
-   - Customer selects plan + addons → Creates/finds customer in Asaas → Creates subscription → Generates payment link
-   - Maintains local database records synchronized with Asaas
+1. **Checkout Flow** (`src/routers/checkout.py` → `src/services/checkout_service.py`)
+   - Router receives request and validates input
+   - CheckoutService orchestrates the entire flow:
+     - Validates plan and addons
+     - PricingService calculates total based on revenue
+     - CustomerService creates/updates customer
+     - Creates subscription and syncs with Asaas
    - Returns checkout URL for payment completion
 
 2. **Webhook Processing** (`src/routers/webhook.py`)
@@ -165,6 +191,8 @@ The app uses different `.env` files:
 5. **Decimal Handling**: Prices stored as DECIMAL, handled properly in Python
 6. **Status Mapping**: Asaas payment statuses mapped to simplified internal enum
 7. **Error Handling**: Comprehensive error handling with proper HTTP status codes
+8. **Service Layer Pattern**: Clean separation of concerns with dedicated service classes
+9. **Small File Policy**: All files kept under 500 lines for maintainability
 
 ## Important Notes
 
